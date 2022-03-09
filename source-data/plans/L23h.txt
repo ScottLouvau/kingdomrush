@@ -1,0 +1,22 @@
+L23
+
+F6 Arti
+F1 Barr
+F6 Tesl
+F3 Arti2
+F1 Barr2
+
+# 02:00
+F3 Tesl
+
+# 04:40
+D2 Musk
+
+# 05:40
+F1 Barr3
+
+# 06:40
+G5 Sorc
+
+# 08:20
+F1 Holy

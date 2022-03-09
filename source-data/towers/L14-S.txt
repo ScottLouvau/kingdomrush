@@ -1,0 +1,7 @@
+L14 Hero Norm
+
+B4 Mage
+E5 Mage2
+G6 Mage3
+B9 Arca
+F9 Sorc

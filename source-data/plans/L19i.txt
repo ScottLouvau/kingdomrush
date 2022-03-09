@@ -1,0 +1,19 @@
+L19
+
+E5 Tesl
+C8 Rang
+
+# 01:20
+C3 Rang
+
+# 03:00
+B6 Tesl
+
+# 04:20
+F7 Musk
+
+# 05:00
+G4 Tesl
+
+# 05:40
+C2 Musk

@@ -1,0 +1,12 @@
+L25
+
+F4 Tesl
+D5 Sorc
+
+# 02:20
+D2 Tesl
+
+# 04:20
+G1 Sorc
+C4 Tesl
+D1 Sorc

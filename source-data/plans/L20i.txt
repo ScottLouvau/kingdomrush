@@ -1,0 +1,13 @@
+L20
+
+A2 Tesl
+E2 Tesl
+C1 Barr
+C3 Rang
+C1 Holy
+D4 Musk
+
+# 04:00
+H7 Arti3
+C7 Barr2
+H7 Tesl

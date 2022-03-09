@@ -1,0 +1,19 @@
+L18
+
+A9 Barr
+A4 Tesl
+B1 Barr
+B6 Tesl
+B1 Barr2
+A9 Barr2
+B1 Barr3
+C9 Arti3
+B1 Holy
+C2 Tesl
+A9 Barr3
+C9 Tesl
+E4 Arti2
+A9 Holy
+E4 Tesl
+D6 Holy
+D9 Tesl

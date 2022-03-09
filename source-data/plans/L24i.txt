@@ -1,0 +1,14 @@
+L24
+
+H6 Barr
+H2 Barr
+F9 Arti3
+H6 Holy
+G1 Tesl
+H2 Barr2
+
+# 02:40
+F3 Arti2
+
+# 04:20
+F9 Tesl

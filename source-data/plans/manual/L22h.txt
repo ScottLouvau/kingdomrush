@@ -1,0 +1,36 @@
+L22
+
+B5 Sorc
+B5 Poly
+D3 Barr
+C1 Tesl
+C1 Over3
+
+# 02:00
+E5 Arti2
+
+# 03:00
+D3 Barr3
+
+# 04:20
+F3 Sorc
+F3 Poly
+
+# 06:00
+E5 Tesl
+E5 Over3
+
+# 08:00
+E8 Sorc
+D3 Holy
+E8 Poly
+B4 Arti2
+G1 Arti2
+B4 Arti3
+G1 Arti3
+
+# 10:40
+B4 Tesl
+B4 Over3
+G1 Tesl
+G1 Over3

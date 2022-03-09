@@ -1,0 +1,7 @@
+L14 Hero Norm
+
+B4 Arti
+E5 Arti2
+G6 Arti3
+B9 BigB
+F9 Tesl

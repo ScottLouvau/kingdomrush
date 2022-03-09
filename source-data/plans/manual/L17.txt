@@ -1,0 +1,95 @@
+L17
+
+C3 Arti
+A1 Barr
+C7 Barr
+D7 Arti
+F3 Barr
+D7 Arti2
+E7 Mage
+D7 Arti3
+C4 Barr
+D7 Tesl
+C3 Arti2
+D7 Over1
+
+# 03:30
+E2 Arch2
+D7 Over3
+
+# 04:40
+E7 Mage3
+E2 Arch3
+C7 Barr2
+E2 Rang
+E2 Pois1
+
+# 07:05
+E7 Sorc
+E2 Wrat1
+
+# 08:15
+F4 Mage
+E7 Poly1
+E2 Wrat3
+E2 Pois2
+
+# 10:10
+C4 Barr2
+C9 Musk
+C7 Barr3
+F4 Mage2
+C3 Arti3
+A1 Barr2
+E2 Pois3
+
+# 12:10
+F4 Sorc
+F4 Poly1
+
+# 13:25
+F3 Barr2
+A1 Barr3
+A4 Arch
+C9 Snip2
+
+# 14:40
+A4 Arch3
+C7 Holy
+A4 Musk
+C3 Tesl
+C9 Snip3
+C7 Shie1
+A4 Snip1
+C3 Over2
+
+# 17:20
+C4 Barr3
+A4 Snip2
+E7 Summ1
+C3 Over3
+
+# 18:40
+G3 Musk
+G3 Snip3
+
+# 20:20
+C4 Holy
+A1 Holy
+G3 Shra2
+C9 Shra2
+A4 Snip3
+A4 Shra1
+G3 Shra3
+C9 Shra3
+A4 Shra2
+F4 Summ1
+C4 Shie1
+
+# 25:25
+F9 Tesl
+F9 Over3
+
+# 26:05
+A7 Musk
+A7 Shra1

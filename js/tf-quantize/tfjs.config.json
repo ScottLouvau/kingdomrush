@@ -1,0 +1,11 @@
+{
+    "kernels": ["Slice", "FusedConv2D", "fusedConv2d__op", "MaxPool", "Reshape", "_FusedMatMul", "fusedMatMul__op", "Add", "Softmax", "Identity"],
+    "backends": [
+        "cpu"
+    ],
+    "models": [
+        "../data/models/v2-u8/model.json"
+    ],
+    "outputPath": "./custom_tfjs",
+    "forwardModeOnly": true
+  }

@@ -1,0 +1,105 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Master",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\master.js"
+    },
+    {
+      "name": "Animate",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\animate.js",
+      "args": [
+        "../data/plans/manual/L22.txt"
+      ]
+    },
+    {
+      "name": "Scan",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\scan.js",
+      "args": [
+        "allVideos",
+        "/Working/KingdomRush/Play2/Out"
+      ]
+    },
+    {
+      "name": "Scan Test",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\scan.js",
+      "args": [
+        "test", "test/abilityCircle/WebP"
+      ]
+    },
+    {
+      "name": "Extract",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\extract.js",
+      "args": [
+        "../../source-data/extract/extract-single.json"
+      ],
+    },
+    {
+      "name": "Test",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node/node_modules/jest/bin/jest",
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "args": [
+        "--runInBand"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--experimental-vm-modules"
+      },
+      "cwd": "${workspaceFolder}/node",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true
+    }
+  ]
+}

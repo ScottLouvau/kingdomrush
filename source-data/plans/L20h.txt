@@ -1,0 +1,17 @@
+L20
+
+A2 Tesl
+E2 Tesl
+
+# 02:20
+C1 Sorc
+
+# 04:00
+A5 Tesl
+
+# 05:40
+C3 Musk
+
+# 07:00
+H7 Arti2
+G7 Barr2

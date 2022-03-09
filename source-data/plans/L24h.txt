@@ -1,0 +1,28 @@
+L24
+
+F9 Arti2
+H6 Barr2
+H2 Barr
+G1 Arti3
+H2 Barr2
+
+# 02:00
+H3 Mage2
+
+# 03:20
+G1 Tesl
+
+# 06:20
+H3 Mage3
+H2 Barr3
+
+# 07:40
+H3 Arca
+
+# 08:20
+H2 Holy
+F9 Arti3
+H6 Barr3
+F9 Tesl
+F3 Arca
+D2 Mage3

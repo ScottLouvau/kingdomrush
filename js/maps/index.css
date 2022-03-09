@@ -1,0 +1,60 @@
+*, ::after, ::before 
+{
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+body {
+    padding: 4px;
+
+    background-color: #151515;
+    color: #dddddd;
+    font-size: 16px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.item {
+    position: relative;
+    margin: 3px;
+    background-color: white;
+}
+
+.item .img {
+    display: block;
+    width: calc(min(100vw - 8px, 100vh * 16/9 - 8px, 416px));
+    height: calc(min(100vh - 8px, 100vw * 9/16 - 8px, 234px));
+}
+
+.item .caption {
+    display: block;
+    position: absolute;
+    width: 100%;
+    color: #ddd;
+    left: 0;
+    bottom: 0;
+    padding: 0px 0px 3px 4px;
+    z-index: 2;
+    /* background: rgba(0, 0, 0, 0) linear-gradient(to bottom, rgba(0, 0, 0, 0.0) -30px, rgba(0, 0, 0, 0.8) 100%) repeat 0 0; */
+    backdrop-filter: brightness(40%) blur(1px);
+}
+
+.item .caption div { 
+    float: right;
+}
+
+.item .caption div a {
+    color: #ddd;
+    margin-right: 8px;
+}
+
+.item .img:hover {
+    /* filter: brightness(130%); */
+    filter: opacity(70%);
+}

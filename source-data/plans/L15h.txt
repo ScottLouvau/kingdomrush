@@ -1,0 +1,24 @@
+L15
+
+A4 Barr
+B2 Tesl
+
+# 01:20
+B5 Mage3
+A4 Barr2
+B5 Sorc
+
+# 05:00
+D4 Tesl
+
+# 09:00
+B7 Musk
+
+# 10:40
+A4 Holy
+
+# 12:20
+E5 Musk
+
+# 15:00
+C7 Mage3

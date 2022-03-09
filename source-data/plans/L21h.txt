@@ -1,0 +1,25 @@
+L21
+
+C1 Tesl
+G1 Tesl
+
+# 01:20
+E1 Mage2
+D2 Barr
+E1 Sorc
+H5 Mage2
+F2 Barr
+H5 Sorc
+F2 Barr2
+H2 Arch
+D2 Barr2
+H2 Arch3
+D2 Barr3
+F2 Barr3
+H2 Rang
+
+# 06:00
+A3 Musk
+
+# 07:40
+F2 Holy

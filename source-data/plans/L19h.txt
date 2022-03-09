@@ -1,0 +1,23 @@
+L19
+
+E5 Tesl
+C3 Barr2
+H3 Barr
+B6 Arti
+H3 Barr2
+B6 Tesl
+
+# 04:40
+G4 Arti
+C3 Barr3
+G4 Tesl
+
+# 07:40
+C2 Musk
+
+# 09:00
+C8 Rang
+A7 Musk
+
+# 11:40
+C3 Holy

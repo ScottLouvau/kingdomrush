@@ -1,0 +1,7 @@
+L11 Hero Norm
+
+A1 Barr
+A6 Barr2
+C7 Barr3
+F7 Holy
+G5 Barb

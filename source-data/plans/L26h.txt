@@ -1,0 +1,40 @@
+L26
+
+C6 Sorc
+F2 Barr
+
+# 01:00
+B6 Mage2
+
+# 02:00
+A6 Barr
+B6 Mage3
+A6 Barr2
+
+# 03:20
+E3 Arti
+
+# 04:00
+C9 Arti2
+
+# 04:40
+F2 Barr2
+
+# 06:00
+E3 Arti2
+F2 Barr3
+
+# 06:40
+E6 Mage3
+B6 Arca
+B3 Barr
+
+# 08:40
+E6 Arca
+
+# 09:20
+C2 Barr
+C9 Arti3
+B3 Barr3
+C2 Barr2
+A6 Barr3

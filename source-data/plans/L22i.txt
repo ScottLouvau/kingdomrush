@@ -1,0 +1,17 @@
+L22
+
+B4 Barb
+E8 Barr3
+D8 Sorc
+
+# 01:20
+E8 Barb
+
+# 02:00
+F3 Mage3
+G1 Barb
+F3 Sorc
+
+# 04:40
+A2 Sorc
+C5 Sorc

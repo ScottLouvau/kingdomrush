@@ -1,0 +1,16 @@
+# Local Retrieved Packages and State
+package-lock.json
+node_modules/
+
+# Generated outputs
+deploy/
+js/node/playthrough/
+js/data/train-sprites/
+js/data/maps/
+js/data/plans/**/animated/
+js/data/plans/**/short/
+js/data/**/*.mp4
+js/img/
+js/node/test/img/png
+js/webpack-scan/dist/*.js
+js/webpack-scan/dist/*.LICENSE.txt
