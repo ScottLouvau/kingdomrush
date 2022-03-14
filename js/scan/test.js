@@ -9,6 +9,7 @@ const circleIntervalSec = 0.5;
 const scanIntervalSec = 5;
 
 let pause = null;
+let videoQueue = [];
 
 // Video element and state of scanning
 let image = null;
@@ -30,6 +31,7 @@ let diagnostic = null;
 let drawing = null;
 
 let state = null;
+let circles = null;
 
 let start = null;
 let end = null;
@@ -72,10 +74,15 @@ async function onFrame(e) {
         if (elapsed >= nextTowerScan) {
             nextTowerScan = elapsed + scanIntervalSec;
             state = scanner.nextFrame(ctx);
+
+            if (!circles.map && scanner.mapName) {
+                circles.map = scanner.mapName;
+            }
         }
 
         if (circle !== null) {
             let last = scanner.world[circle.posName];
+            circles.circles.push({ "pos": circle.posName, "at": elapsed.toFixed(1), "hi": circle.hi, "x": circle.x, "y": circle.y, "z": circle.z });
 
             if (last?.base?.sn?.[1] ?? 0 < 4) {
                 state = scanner.nextFrame(ctx);
@@ -99,10 +106,10 @@ async function onFrame(e) {
             planOut.scrollTop = planOut.scrollHeight - planOut.clientHeight;
         }
 
-        if (pause) {
-            video.pause();
-            return;
-        }
+        // if (pause) {
+        //     video.pause();
+        //     return;
+        // }
     }
 
     if (next < duration) {
@@ -148,6 +155,9 @@ async function onEnded(e) {
         clearInterval(interval);
         interval = null;
     }
+
+    downloadData();
+    nextVideo();
 }
 
 async function onDrop(e) {
@@ -155,21 +165,51 @@ async function onDrop(e) {
     e.preventDefault();
 
     if (e.dataTransfer.items && e.dataTransfer.items.length >= 1) {
-        let item = e.dataTransfer.items[0];
-        if (item.kind === 'file') {
-            const file = await item.getAsFile();
-            const url = URL.createObjectURL(file);
-
-            scanner.mapName = null;
-            state = null;
-
-            if (item.type.startsWith("image/")) {
-                image.src = url;
-            } else if (item.type.startsWith("video/")) {
-                video.src = url;
+        for (var i = 0; i < e.dataTransfer.items.length; ++i) {
+            let item = e.dataTransfer.items[i];
+            if (item.kind === 'file') {
+                const file = await item.getAsFile();
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.[^\.]+$/, '');
+                videoQueue.push({ name: name, url: url, type: item.type });
             }
         }
+
+        nextVideo();
     }
+}
+
+function nextVideo() {
+    if (videoQueue?.length > 0) {
+        const item = videoQueue[0];
+        videoQueue.shift();
+
+        scanner.mapName = null;
+        state = null;
+        circles = { "name": item.name, "circles": [] };
+
+        if (item.type.startsWith("image/")) {
+            image.src = item.url;
+        } else if (item.type.startsWith("video/")) {
+            video.src = item.url;
+        }
+    }
+}
+
+function downloadData() {
+    download(JSON.stringify(circles, null, 4), "text/json", `${circles.name}.json`);
+    download(planOut.value, "text/plain", `${circles.name}.txt`);
+}
+
+function download(text, type, fileName) {
+    const blob = new Blob([text], { type: type });
+    const tempLink = document.createElement("a");
+
+    tempLink.download = fileName;
+    tempLink.href = URL.createObjectURL(blob);
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    document.body.removeChild(tempLink);
 }
 
 function keyDown(e) {
