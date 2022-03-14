@@ -27,7 +27,7 @@ const NUM_TRAIN_ELEMENTS = 8750;
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 
 const CountsUrl = `../data/train-sprites/counts.json`;
-const SpriteUrl = `../data/train-sprites/sprites.png`;
+const SpriteUrl = `../data/train-sprites/sprites.webp`; //.png`;
 
 /**
  * A class that fetches the sprited Towers dataset and returns shuffled batches.

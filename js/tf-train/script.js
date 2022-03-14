@@ -1,8 +1,18 @@
 import { TowerData } from './data.js';
 
-const ModelPath = '../data/models/v2/towers.json';
-//const ModelPath = '../data/models/v2-f16/model.json';
-//const ModelPath = '../data/models/v2-u8/model.json';
+//const ModelPath = '../data/models/filters4_8/towers.json';    // Great except ~10% errors from 'None' samples; 204 KB.
+//const ModelPath = '../data/models/stride1_2/towers.json';     // Great, 1-2 errors in full set; 104 KB.
+//const ModelPath = '../data/models/stride2_1/towers.json';     // Great, 0-1 error in full set; 83 KB
+//const ModelPath = '../data/models/stride2_1_webp/towers.json';  // Great, 0-1 error (None); 83 KB
+//const ModelPath = '../data/models/stride2_2/towers.json';     // Good, map problems and ~1 error otherwise; 38 KB
+//const ModelPath = '../data/models/stride3/towers.json';       // Good, < 90% sometimes; 17 KB.
+//const ModelPath = '../data/models/max3_3/towers.json';        // Good, but Map and None ~90%; 83 KB.
+//const ModelPath = '../data/models/v2/towers.json';            // Great, no errors observed. 413 KB.
+const ModelPath = '../data/models/v2-webp/towers.json';       // No errors observed.
+//const ModelPath = '../data/models/v2-f16/model.json';         // No errors observed.
+//const ModelPath = '../data/models/v2-u8/model.json';          // 0-1 error (None)
+//const ModelPath = '../data/models/s2_1-u8/model.json';          // 1-2 errors + Map 90%
+//const ModelPath = '../data/models/s2_1-f16/model.json';          // Map 80% (Map | None)
 const classNames = ['Arca', 'Arch', 'Arch2', 'Arch3', 'Arti', 'Arti2', 'Arti3', 'Barb', 'Barr', 'Barr2', 'Barr3', 'BigB', 'Holy', 'Mage', 'Mage2', 'Mage3', 'Map', 'Musk', 'None', 'Rang', 'Sorc', 'Tesl'];
 const NUM_OUTPUT_CLASSES = 22;
 
@@ -16,6 +26,8 @@ const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 
 const BATCH_SIZE = 256;
 const EPOCH_COUNT = 10;
+
+let model = null;
 
 function getModel() {
     const model = tf.sequential();
@@ -173,7 +185,7 @@ async function retrain() {
     const messageDiv = document.getElementById("message");
     messageDiv.innerText = "Retraining...";
 
-    const model = getModel();
+    model = getModel();
     tfvis.show.modelSummary({ name: 'Model Architecture', tab: 'Train' }, model);
 
     var start = performance.now();
@@ -188,17 +200,17 @@ async function retrain() {
 }
 
 async function predict() {
-    const model = await tf.loadLayersModel(ModelPath);
+    if (model === null) {
+        model = await tf.loadLayersModel(ModelPath);
+    }
+
     await showPredictionQuality(model, data);
 }
 
 async function run() {
     await data.load();
     await showExamples(data);
-
-    //const model = getModel();
-    const model = await tf.loadLayersModel(ModelPath);
-    await showPredictionQuality(model, data);
+    await predict();
 }
 
 document.addEventListener('DOMContentLoaded', run);

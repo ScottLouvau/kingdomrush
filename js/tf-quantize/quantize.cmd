@@ -20,3 +20,6 @@ tensorflowjs_converter --input_format tfjs_layers_model --output_format tfjs_lay
 tensorflowjs_converter --input_format tfjs_layers_model --output_format tfjs_layers_model --quantize_uint8 * "../data/models/v2/towers.json" "../data/models/v2-u8"
 
 tensorflowjs_converter --input_format tfjs_layers_model --output_format tfjs_graph_model --quantize_uint8 * "../data/models/v2/towers.json" "../data/models/v2-u8-graph"
+
+::tensorflowjs_converter --input_format tfjs_layers_model --output_format tfjs_layers_model --quantize_uint8 * "../data/models/stride2_1_webp/towers.json" "../data/models/s2_1-u8"
+::tensorflowjs_converter --input_format tfjs_layers_model --output_format tfjs_layers_model --quantize_float16 * "../data/models/stride2_1_webp/towers.json" "../data/models/s2_1-f16"
