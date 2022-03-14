@@ -82,7 +82,7 @@ async function onFrame(e) {
 
         if (circle !== null) {
             let last = scanner.world[circle.posName];
-            circles.circles.push({ "pos": circle.posName, "at": elapsed.toFixed(1), "hi": circle.hi, "x": circle.x, "y": circle.y, "z": circle.z });
+            circles.circles.push({ "pos": circle.posName, "at": toTimeString(elapsed), "hi": circle.hi, "x": circle.x, "y": circle.y, "z": circle.z });
 
             if (last?.base?.sn?.[1] ?? 0 < 4) {
                 state = scanner.nextFrame(ctx);
@@ -146,6 +146,29 @@ function checkForNewUpgrade(last, circle, letter) {
     }
 }
 
+function toTimeString(totalSeconds) {
+    let hours = Math.floor(totalSeconds / 3600);
+    let minutes = Math.floor((totalSeconds / 60)) % 60;
+    let seconds = Math.floor(totalSeconds) % 60;
+    let tenths = Math.floor(totalSeconds * 10) % 10;
+
+    let result = `${seconds.toFixed(0).padStart(2, '0')}`;
+
+    if (totalSeconds >= 60) {
+        result = `${minutes.toFixed(0).padStart(2, '0')}:${result}`;
+    }
+
+    if (hours > 0) {
+        result = `${hours.toFixed(0).padStart(2, '0')}:${result}`;
+    }
+
+    if (tenths !== 0) {
+        result += `.${tenths.toFixed(0)}`;
+    }
+
+    return result;
+}
+
 async function onEnded(e) {
     end = performance.now();
     const timeSeconds = (end - start) / 1000;
@@ -197,8 +220,19 @@ function nextVideo() {
 }
 
 function downloadData() {
-    download(JSON.stringify(circles, null, 4), "text/json", `${circles.name}.json`);
+    download(circlesJson(), "text/json", `${circles.name}.json`);
     download(planOut.value, "text/plain", `${circles.name}.txt`);
+}
+
+function circlesJson() {
+    let out = `{ "name": "${circles.name}", "map": "${circles.map}", "circles": [`;
+
+    for (let i = 0; i < circles.circles.length; ++i) {
+        out += `${(i > 0 ? ',' : '')}\n\t${JSON.stringify(circles.circles[i])}`;
+    }
+
+    out += "\n]}\n";
+    return out;
 }
 
 function download(text, type, fileName) {
