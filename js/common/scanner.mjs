@@ -33,7 +33,6 @@ export default class Scanner {
             let color = this.colors(i8, width, sellR);
             if (color.black < 0.9) {
                 sellR.y -= 17;
-                sellR.hi = true;
                 color = this.colors(i8, width, sellR);
             }
 
@@ -46,7 +45,7 @@ export default class Scanner {
             if (color.silver < 0.65) { continue; }
 
             // This looks like an ability circle.
-            result = { posName: posName, hi: sellR.hi ?? false };
+            result = { posName: posName };
 
             // Try looking for the 'Z' ability of X|Y|Z.
             //  These checks will hit the map (other | silver) unless this is a three-ability circle.
