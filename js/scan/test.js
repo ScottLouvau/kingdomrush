@@ -1,26 +1,25 @@
 import * as tf from '../ref/tf.fesm.min.js';
 import Scanner from '../common/scanner.mjs';
-import PlanParser from '../common/planParser.mjs';
 import Drawing from '../common/drawing.mjs';
 import towers from "../data/towers.min.mjs";
 
-const playbackRate = 4;
-const circleIntervalSec = 0.5;
+const playbackRate = 8;
+const circleIntervalSec = 0.333;
 const scanIntervalSec = 5;
 
-let pause = null;
+let pauseOnChange = false;
 let videoQueue = [];
 
 // Video element and state of scanning
 let image = null;
 let video = null;
 let duration = null;
+let start = null;
 
 let nextTowerScan = null;
 let nextAbilityScan = null;
 
 // Canvas capturing video frames and code to scan frames and parse plans
-let parser = null;
 let scanner = null;
 let can = null;
 let ctx = null;
@@ -33,10 +32,6 @@ let drawing = null;
 let state = null;
 let circles = null;
 
-let start = null;
-let end = null;
-let interval = null;
-
 async function onLoaded() {
     duration = video.duration;
     start = performance.now();
@@ -48,74 +43,74 @@ async function onLoaded() {
     video.playbackRate = playbackRate;
     video.play();
 
-    interval = setTimeout(onFrame, (1000 * circleIntervalSec / playbackRate));
+    setTimeout(onFrame, 50);
 }
 
 async function onFrame(e) {
-    let elapsed = null;
-    let next = null;
+    const elapsed = video.currentTime;
+    let next = Math.min(nextTowerScan, nextAbilityScan);
 
-    while (true) {
-        elapsed = video.currentTime;
-        next = Math.min(nextTowerScan, nextAbilityScan);
-        if (next > duration || next > elapsed) { break; }
-
+    if (elapsed >= next) {
         // Grab a frame
         ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, 1920, 1080);
         drawing.drawImage(can, 0, 0);
         progress.style.width = `${(100 * elapsed / duration).toFixed(2)}%`;
-
-        let circle = null;
-        if (elapsed >= nextAbilityScan) {
-            nextAbilityScan = elapsed + circleIntervalSec;
-            circle = scanner.circleAtPosition(ctx);
-        }
-
-        if (elapsed >= nextTowerScan) {
-            nextTowerScan = elapsed + scanIntervalSec;
-            state = scanner.nextFrame(ctx);
-
-            if (!circles.map && scanner.mapName) {
-                circles.map = scanner.mapName;
-            }
-        }
-
-        if (circle !== null) {
-            let last = scanner.world[circle.posName];
-
-            if (last?.base?.sn?.[1] ?? 0 < 4) {
-                state = scanner.nextFrame(ctx);
-                last = scanner.world[circle.posName];
-            }
-
-            circles.circles.push({ "pos": circle.posName, "at": toTimeString(elapsed), "hi": circle.hi, "on": last?.base?.sn, "x": circle.x, "y": circle.y, "z": circle.z });
-
-            if (!last?.base?.sn) {
-                console.log(`ERROR: Didn't find tower for ability upgrade at ${circle.posName}`);
-            } else {
-                checkForNewUpgrade(last, circle, "x");
-                checkForNewUpgrade(last, circle, "y");
-                checkForNewUpgrade(last, circle, "z");
-            }
-        }
-
-        const last = scanner.plan?.[scanner?.plan?.length - 1];
-        if (lastStep !== last) {
-            lastStep = last;
-            const planText = scanner.plan?.join('\r\n') ?? "Identifying Map...";
-            planOut.value = planText;
-            planOut.scrollTop = planOut.scrollHeight - planOut.clientHeight;
-        }
-
-        // if (pause) {
-        //     video.pause();
-        //     return;
-        // }
     }
 
+    let circle = null;
+    if (elapsed >= nextAbilityScan) {
+        console.log(`Ability @${elapsed.toFixed(2)}, wanted @${nextAbilityScan.toFixed(2)}`);
+        nextAbilityScan = elapsed + circleIntervalSec;
+        circle = scanner.circleAtPosition(ctx);
+    }
+
+    if (elapsed >= nextTowerScan) {
+        console.log(`Tower @${elapsed.toFixed(2)}, wanted @${nextTowerScan.toFixed(2)}`);
+        nextTowerScan = elapsed + scanIntervalSec;
+        state = scanner.nextFrame(ctx);
+
+        if (!circles.map && scanner.mapName) {
+            circles.map = scanner.mapName;
+        }
+    }
+
+    if (circle !== null) {
+        let last = scanner.world[circle.posName];
+
+        if (last?.base?.sn?.[1] ?? 0 < 4) {
+            state = scanner.nextFrame(ctx);
+            last = scanner.world[circle.posName];
+        }
+
+        circles.circles.push({ "pos": circle.posName, "at": Math.floor(elapsed * 100) / 100, "hi": circle.hi, "on": last?.base?.sn, "x": circle.x, "y": circle.y, "z": circle.z });
+
+        if (!last?.base?.sn) {
+            console.log(`ERROR: Didn't find tower for ability upgrade at ${circle.posName}`);
+        } else {
+            checkForNewUpgrade(last, circle, "x");
+            checkForNewUpgrade(last, circle, "y");
+            checkForNewUpgrade(last, circle, "z");
+        }
+    }
+
+    const last = scanner.plan?.[scanner?.plan?.length - 1];
+    if (lastStep !== last) {
+        lastStep = last;
+        const planText = scanner.plan?.join('\r\n') ?? "Identifying Map...";
+        planOut.value = planText;
+        planOut.scrollTop = planOut.scrollHeight - planOut.clientHeight;
+
+        if (pauseOnChange) {
+            video.pause();
+            return;
+        }
+    }
+
+    next = Math.min(nextTowerScan, nextAbilityScan);
     if (next < duration) {
-        const secToNext = (next - video.currentTime);
-        setTimeout(onFrame, Math.min(10, (1000 * secToNext) / playbackRate));
+        const waitMs = Math.max(10, 1000 * (next - 0.05 - video.currentTime) / playbackRate);
+        setTimeout(onFrame, waitMs);
+        console.log(`Waiting ${waitMs.toFixed(0)} ms`);
     }
 }
 
@@ -142,43 +137,13 @@ function checkForNewUpgrade(last, circle, letter) {
                 scanner.plan.push(step);
             }
         }
-
-        pause = true;
     }
-}
-
-function toTimeString(totalSeconds) {
-    let hours = Math.floor(totalSeconds / 3600);
-    let minutes = Math.floor((totalSeconds / 60)) % 60;
-    let seconds = Math.floor(totalSeconds) % 60;
-    let tenths = Math.floor(totalSeconds * 10) % 10;
-
-    let result = `${seconds.toFixed(0).padStart(2, '0')}`;
-
-    if (totalSeconds >= 60) {
-        result = `${minutes.toFixed(0).padStart(2, '0')}:${result}`;
-    }
-
-    if (hours > 0) {
-        result = `${hours.toFixed(0).padStart(2, '0')}:${result}`;
-    }
-
-    if (tenths !== 0) {
-        result += `.${tenths.toFixed(0)}`;
-    }
-
-    return result;
 }
 
 async function onEnded(e) {
-    end = performance.now();
+    const end = performance.now();
     const timeSeconds = (end - start) / 1000;
     console.log(`Video Played through in: ${timeSeconds.toFixed(1)}s (${(video.duration / timeSeconds).toFixed(1)}x)`);
-
-    if (interval) {
-        clearInterval(interval);
-        interval = null;
-    }
 
     downloadData();
     nextVideo();
@@ -250,7 +215,6 @@ function download(text, type, fileName) {
 function keyDown(e) {
     if (e.keyCode === 32) {
         e.preventDefault();
-        pause = false;
         video.play();
         onFrame();
     }
@@ -259,7 +223,6 @@ function keyDown(e) {
 async function run() {
     const model = await tf.loadGraphModel('../data/models/v2-u8-graph/model.json');
     scanner = new Scanner(tf, model);
-    parser = new PlanParser();
 
     image = document.createElement('img');
     image.addEventListener('load', scanImage);
@@ -289,6 +252,13 @@ async function run() {
     document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
     document.body.addEventListener('drop', onDrop);
     document.addEventListener('keydown', keyDown);
+
+    // Enable pause on each change if querystring requests
+    const params = new URLSearchParams(window.location.search);
+    pauseOnChange = (!!params.get("pause"));
+
+    // Warm up AI with an empty frame
+    scanner.nextFrame(ctx);
 }
 
 document.addEventListener('DOMContentLoaded', run);
