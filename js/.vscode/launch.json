@@ -83,6 +83,20 @@
       ],
     },
     {
+      "name": "Extract Circles",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "outFiles": [
+        "${workspaceFolder}\\node\\*.*"
+      ],
+      "cwd": "${workspaceFolder}\\node",
+      "program": "${workspaceFolder}\\node\\extract-circles.js",
+      "args": [],
+    },
+    {
       "name": "Test",
       "type": "node",
       "request": "launch",

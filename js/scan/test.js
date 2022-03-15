@@ -4,7 +4,7 @@ import PlanParser from '../common/planParser.mjs';
 import Drawing from '../common/drawing.mjs';
 import towers from "../data/towers.min.mjs";
 
-const playbackRate = 8;
+const playbackRate = 4;
 const circleIntervalSec = 0.5;
 const scanIntervalSec = 5;
 
@@ -82,12 +82,13 @@ async function onFrame(e) {
 
         if (circle !== null) {
             let last = scanner.world[circle.posName];
-            circles.circles.push({ "pos": circle.posName, "at": toTimeString(elapsed), "hi": circle.hi, "x": circle.x, "y": circle.y, "z": circle.z });
 
             if (last?.base?.sn?.[1] ?? 0 < 4) {
                 state = scanner.nextFrame(ctx);
                 last = scanner.world[circle.posName];
             }
+
+            circles.circles.push({ "pos": circle.posName, "at": toTimeString(elapsed), "hi": circle.hi, "on": last?.base?.sn, "x": circle.x, "y": circle.y, "z": circle.z });
 
             if (!last?.base?.sn) {
                 console.log(`ERROR: Didn't find tower for ability upgrade at ${circle.posName}`);
