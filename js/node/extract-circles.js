@@ -49,7 +49,6 @@ async function extract(outBasePath) {
     await fs.promises.mkdir(outBasePath, { recursive: true });
     await fs.promises.mkdir(`${outBasePath}/blue`, { recursive: true });
     await fs.promises.mkdir(`${outBasePath}/black`, { recursive: true });
-    await fs.promises.mkdir(`${outBasePath}/silver`, { recursive: true });
     await fs.promises.mkdir(`${outBasePath}/other`, { recursive: true });
 
     const can = createCanvas(pipGeo.w, pipGeo.h);
@@ -65,7 +64,7 @@ async function extract(outBasePath) {
         for (let j = 0; j < set.length; ++j) {
             const item = set[j];
             ctx.drawImage(img, item.x, item.y, pipGeo.w, pipGeo.h, 0, 0, pipGeo.w, pipGeo.h);
-            await saveAsPng(`${outBasePath}/${item.color}/L${test.file}_${i}_${j}.png`, can);
+            await saveAsPng(`${outBasePath}/${item.color}/${test.file}_${j}.png`, can);
         }
 
         console.log('.');
@@ -121,14 +120,15 @@ function build(set, baseR, pipName, pipLevel, test) {
     if (on === "p4" && upgrade === 'y') { maxLevel = 1; }
     if (on === "t5" && upgrade === 'x') { maxLevel = 2; }
 
-    let color = test[pipName];
+    let color = test[pipName + pipLevel];
     if (!color) {
         if (parseInt(pipName[0]) !== abilityCount) {
             // If there aren't this number of abilities for this tower, it's other (hitting the background map)
             color = "other";
         } else if (pipLevel > maxLevel) {
             // If this ability doesn't have that many levels, it's silver (hitting the ring)
-            color = "silver";
+            //color = "silver";
+            color = "other";
         } else if (level >= pipLevel) {
             // If this many levels are unlocked, pip should be blue
             color = "blue";
@@ -154,8 +154,8 @@ async function toSingleSprite(collectionFolderPath, outPath) {
     const writer = new SpriteWriter(
         pipGeo.w,
         pipGeo.h,
-        20,
-        20,
+        30,
+        30,
         outPath,
         canvas.createCanvas,
         saveAsPng
