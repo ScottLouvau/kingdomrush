@@ -10,13 +10,13 @@
     
     { "file": "F170", "map": "L9", "circle": null },
     { "file": "F370", "map": "L9", "circle": null },
-    { "file": "F549", "map": "L9", "on": "r4", "circle": { "posName": "E4", "x": 1, "y": 0 }, "2x3": "o" },
+    { "file": "F549", "map": "L9", "on": "r4", "circle": { "posName": "E4", "x": 1, "y": 0 }, "2x3": "other" },
     { "file": "F652", "map": "L9", "on": "r4", "circle": { "posName": "E4", "x": 2, "y": 0 } },
-    { "file": "F833", "map": "L9", "on": "r4", "circle": null, "cAlt": { "posName": "E4", "x": 2, "y": 0 }, "2x3": "o", "desc": "Pip covered after blue" },
+    { "file": "F833", "map": "L9", "on": "r4", "circle": null, "cAlt": { "posName": "E4", "x": 2, "y": 0 }, "2x3": "other", "desc": "Pip covered after blue" },
     { "file": "F1051", "map": "L9", "on": "s5", "circle": { "posName": "F1", "x": 0, "y": 0 } },
     { "file": "F2129", "map": "L9", "on": "r5", "circle": { "posName": "D7", "x": 3, "y": 0 } },
 
-    { "file": "F015", "map": "L16", "on": "s5", "circle": null, "cAlt": { "posName": "C4", "x": 1, "y": 2}, "2y3": "o", "desc": "Pip covered after blue" },
+    { "file": "F015", "map": "L16", "on": "s5", "circle": null, "cAlt": { "posName": "C4", "x": 1, "y": 2}, "2y3": "other", "desc": "Pip covered after blue" },
     { "file": "F031", "map": "L16", "on": "p5", "circle": { "posName": "A7", "x": 0, "y": 0, "z": 1 } },
     { "file": "F032", "map": "L16", "on": "p5", "circle": { "posName": "A7", "x": 0, "y": 0, "z": 3 } },
     { "file": "F062", "map": "L16", "on": "p5", "circle": { "posName": "A1", "x": 0, "y": 0, "z": 0 } },
@@ -27,7 +27,7 @@
 
     { "file": "F317", "map": "L16", "circle": null },
     { "file": "F367", "map": "L16", "on": "s4", "circle": { "posName": "A9", "x": 1, "y": 1 } },
-    { "file": "F513", "map": "L16", "on": "t5", "circle": { "posName": "F2", "x": 0, "y": 1 }, "2y3": "o" },
+    { "file": "F513", "map": "L16", "on": "t5", "circle": { "posName": "F2", "x": 0, "y": 1 }, "2y3": "other" },
     { "file": "F575", "map": "L16", "on": "r5", "circle": { "posName": "E6", "x": 1, "y": 0 } },
     { "file": "F653", "map": "L16", "on": "r5", "circle": { "posName": "E6", "x": 2, "y": 1 } },
     { "file": "F698", "map": "L16", "on": "r5", "circle": { "posName": "E6", "x": 3, "y": 3 } },

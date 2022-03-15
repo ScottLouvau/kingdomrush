@@ -1,21 +1,18 @@
 import fs from 'fs';
-import path from 'path';
-import child_process from 'child_process';
 import canvas from 'canvas';
 
-import settings from '../data/settings.mjs';
-import { loadJson, saveAsPng } from './nodeBindings.mjs';
+import { loadJson, saveAsPng, createCanvas } from './nodeBindings.mjs';
 import SpriteWriter from '../common/spriteWriter.mjs';
 
 const ffmpeg = "\\Users\\slouv\\OneDrive\\Tools\\bin\\ffmpeg\\ffmpeg.exe";
 const pipGeo = {
     w: 17, h: 17,
     high: { relX: 0, relY: -17 },
-    x2: { n: "x2", relX: -78, relY: -118 },
-    y2: { n: "y2", relX: 62, relY: -118 },
-    x3: { n: "x3", relX: -95, relY: -99 },
-    y3: { n: "y3", relX: -8, relY: -144 },
-    z3: { n: "z3", relX: 79, relY: -99 },
+    "2x": { n: "2x", relX: -78, relY: -118 },
+    "2y": { n: "2y", relX: 62, relY: -118 },
+    "3x": { n: "3x", relX: -95, relY: -99 },
+    "3y": { n: "3y", relX: -8, relY: -144 },
+    "3z": { n: "3z", relX: 79, relY: -99 },
     l2: { relX: 25, relY: 10 },
     l3: { relX: 25 + 9, relY: 10 + 24 }
 };
@@ -33,18 +30,21 @@ const pipGeo = {
 // X2 L1 17x17: (995, 507)   => vPos: (-78, -118)
 // Y2 L1 17x17: (1135, 507)  => vPos: (62,  -118)
 
-function toRect(base, geo) {
+// Single Frame:
+// child_process.execSync(`"${ffmpeg}" -ss ${item.at} -i "${inFilePath}" -vframes 1 -y "${stagingFilePath}"`);
+
+function toRect(base, geo, off) {
     return {
-        x: base.x + (geo?.relX ?? 0),
-        y: base.y + (geo?.relY ?? 0),
+        x: base.x + (geo?.relX ?? 0) + (off?.relX ?? 0),
+        y: base.y + (geo?.relY ?? 0) + (off?.relY ?? 0),
         w: pipGeo.w,
         h: pipGeo.h
     };
 }
 
-async function extract(extractPlanPath, inBasePath, outBasePath) {
+async function extract(outBasePath) {
     const allPositions = await loadJson('../data/positions.min.json');
-    const circleFiles = await fs.promises.readdir(extractPlanPath);
+    const tests = await loadJson('test/abilityCircle.cases.json');
 
     await fs.promises.mkdir(outBasePath, { recursive: true });
     await fs.promises.mkdir(`${outBasePath}/blue`, { recursive: true });
@@ -52,53 +52,100 @@ async function extract(extractPlanPath, inBasePath, outBasePath) {
     await fs.promises.mkdir(`${outBasePath}/silver`, { recursive: true });
     await fs.promises.mkdir(`${outBasePath}/other`, { recursive: true });
 
-    for (let j = 0; j < circleFiles.length; ++j) {
-        const extract = await loadJson(`${extractPlanPath}/${circleFiles[j]}`);
-        const positions = allPositions[extract.map];
-        const inFilePath = `${inBasePath}/${extract.name}.mp4`;
+    const can = createCanvas(pipGeo.w, pipGeo.h);
+    const ctx = can.getContext('2d');
 
-        for (let i = 0; i < extract.circles.length; ++i) {
-            let item = extract.circles[i];
-            let position = positions[item.pos];
-            let r = position;
-            if (item.hi === true) {
-                r = toRect(r, pipGeo.high);
-            }
+    for (let i = 0; i < tests.length; ++i) {
+        const test = tests[i];
+        const img = await canvas.loadImage(`test/img/png/abilityCircle/${test.file}.png`);
+        const positions = allPositions[test.map];
 
-            if (item.on[0] === 'p') {
-                rip(item.at, inFilePath, toRect(r, pipGeo.x3), outBasePath, `${i}_${extract.name}_${item.pos}_x3`, item.x, 3);
-                rip(item.at, inFilePath, toRect(r, pipGeo.y3), outBasePath, `${i}_${extract.name}_${item.pos}_y3`, item.y, (item.on === "p4" ? 1 : 3));
-                rip(item.at, inFilePath, toRect(r, pipGeo.z3), outBasePath, `${i}_${extract.name}_${item.pos}_z3`, item.z, 3);
-            } else {
-                rip(item.at, inFilePath, toRect(r, pipGeo.x2), outBasePath, `${i}_${extract.name}_${item.pos}_x2`, item.x, (item.on === "t5" ? 2 : 3));
-                rip(item.at, inFilePath, toRect(r, pipGeo.y2), outBasePath, `${i}_${extract.name}_${item.pos}_y2`, item.y, 3);
-            }
+        const set = expandToAll(test, positions);
 
-            if (i % 5 === 0) { console.log('.'); }
-            break;
+        for (let j = 0; j < set.length; ++j) {
+            const item = set[j];
+            ctx.drawImage(img, item.x, item.y, pipGeo.w, pipGeo.h, 0, 0, pipGeo.w, pipGeo.h);
+            await saveAsPng(`${outBasePath}/${item.color}/L${test.file}_${i}_${j}.png`, can);
         }
+
+        console.log('.');
     }
 }
 
+function expandToAll(test, positions) {
+    if (!test.on) { return []; }
 
-function rip(time, inFilePath, baseR, outBasePath, outName, atLevel, maxLevel) {   
-    // TODO: Timings not right; off by 2.0 sec?
-    // TODO: Can't get 17x17 crop via FFMPEG. It writes 16x16. Extract whole frame and then cut out pips.
-    // Should I move training data extraction to test.js?
-    let r = baseR;
-    let level = 1;
-    let set = (maxLevel < level ? "silver" : (atLevel < level ? "black" : "blue"));
-    child_process.execSync(`"${ffmpeg}" -ss ${time} -i "${inFilePath}" -t 0.01 -vf "crop=${pipGeo.w}:${pipGeo.h}:${r.x}:${r.y}" -f image2 -y "${outBasePath}/${set}/${outName}_L${level}.png"`);
+    const circle = test.circle || test.cAlt;
+    let baseR = positions[circle.posName];
+    if (test.on[0] === 's' || test.on[0] === 't') {
+        baseR = toRect(baseR, pipGeo.high);
+    }
 
-    r = toRect(baseR, pipGeo.l2);
-    level = 2;
-    set = (maxLevel < level ? "silver" : (atLevel < level ? "black" : "blue"));
-    child_process.execSync(`"${ffmpeg}" -ss ${time} -i "${inFilePath}" -t 0.01 -vf "crop=${pipGeo.w}:${pipGeo.h}:${r.x}:${r.y}" -f image2 -y "${outBasePath}/${set}/${outName}_L${level}.png"`);
+    let set = [];
 
-    r = toRect(baseR, pipGeo.l3);
-    level = 3;
-    set = (maxLevel < level ? "silver" : (atLevel < level ? "black" : "blue"));
-    child_process.execSync(`"${ffmpeg}" -ss ${time} -i "${inFilePath}" -t 0.01 -vf "crop=${pipGeo.w}:${pipGeo.h}:${r.x}:${r.y}" -f image2 -y "${outBasePath}/${set}/${outName}_L${level}.png"`);
+    build(set, baseR, "2x", 1, test);
+    build(set, baseR, "2x", 2, test);
+    build(set, baseR, "2x", 3, test);
+
+    build(set, baseR, "2y", 1, test);
+    build(set, baseR, "2y", 2, test);
+    build(set, baseR, "2y", 3, test);
+
+    build(set, baseR, "3x", 1, test);
+    build(set, baseR, "3x", 2, test);
+    build(set, baseR, "3x", 3, test);
+
+    build(set, baseR, "3y", 1, test);
+    build(set, baseR, "3y", 2, test);
+    build(set, baseR, "3y", 3, test);
+
+    build(set, baseR, "3z", 1, test);
+    build(set, baseR, "3z", 2, test);
+    build(set, baseR, "3z", 3, test);
+
+    return set;
+}
+
+function build(set, baseR, pipName, pipLevel, test) {
+    const circle = test.circle ?? test.cAlt;
+    const on = test.on;
+    const upgrade = pipName[1];
+
+    const level = circle[upgrade];
+
+    // Barracks have three different abilities, other towers have two
+    const abilityCount = (on[0] === 'p' ? 3 : 2);
+
+    // Abilities have three levels except Holy Order Shields and Tesla Supercharged Bolt
+    let maxLevel = 3;
+    if (on === "p4" && upgrade === 'y') { maxLevel = 1; }
+    if (on === "t5" && upgrade === 'x') { maxLevel = 2; }
+
+    let color = test[pipName];
+    if (!color) {
+        if (parseInt(pipName[0]) !== abilityCount) {
+            // If there aren't this number of abilities for this tower, it's other (hitting the background map)
+            color = "other";
+        } else if (pipLevel > maxLevel) {
+            // If this ability doesn't have that many levels, it's silver (hitting the ring)
+            color = "silver";
+        } else if (level >= pipLevel) {
+            // If this many levels are unlocked, pip should be blue
+            color = "blue";
+        } else {
+            // Otherwise, pip is black
+            color = "black";
+        }
+    }
+
+    const rect = toRect(baseR, pipGeo[pipName], pipGeo["l" + pipLevel]);
+    const result = { ...rect, color: color }
+    set.push(result);
+}
+
+function timeToSeconds(time) {
+    const parts = time.split(':');
+    return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
 }
 
 async function toSingleSprite(collectionFolderPath, outPath) {
@@ -136,14 +183,11 @@ async function toSingleSprite(collectionFolderPath, outPath) {
 
 async function main() {
     const start = performance.now();
-    const args = process.argv.slice(2);
 
-    const inBasePath = `/Working/KingdomRush/Play2/Out`;
     const outBasePath = `/Working/KR-Circle-Tensor`;
     const spritePath = `/Working/KR-Circle-Sprites`;
 
-    const planPath = args[0] ?? '../../source-data/extract/circles';
-    await extract(planPath, inBasePath, outBasePath);
+    await extract(outBasePath);
     await toSingleSprite(outBasePath, spritePath);
 
     const end = performance.now();
