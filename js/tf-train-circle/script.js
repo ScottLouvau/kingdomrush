@@ -1,6 +1,7 @@
 import { TowerData } from './data.js';
 
-const ModelPath = '../data/models/pips-v2/pips.json';
+//const ModelPath = '../data/models/pips-v2/pips.json';
+const ModelPath = '../data/models/pips-tiny/pips.json';
 const classNames = ['black', 'blue', 'other'];
 const NUM_CLASSES = 3;
 
@@ -26,7 +27,7 @@ function getModel() {
     model.add(tf.layers.conv2d({
         inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
         kernelSize: 5,
-        filters: 8,
+        filters: 4,
         strides: 1,
         activation: 'relu',
         kernelInitializer: 'varianceScaling'
@@ -36,16 +37,16 @@ function getModel() {
     // in a region instead of averaging.
     model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
 
-    // Repeat another conv2d + maxPooling stack.
-    // Note that we have more filters in the convolution.
-    model.add(tf.layers.conv2d({
-        kernelSize: 5,
-        filters: 16,
-        strides: 1,
-        activation: 'relu',
-        kernelInitializer: 'varianceScaling'
-    }));
-    model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
+    // // Repeat another conv2d + maxPooling stack.
+    // // Note that we have more filters in the convolution.
+    // model.add(tf.layers.conv2d({
+    //     kernelSize: 5,
+    //     filters: 16,
+    //     strides: 1,
+    //     activation: 'relu',
+    //     kernelInitializer: 'varianceScaling'
+    // }));
+    // model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
 
     // Now we flatten the output from the 2D filters into a 1D vector to prepare
     // it for input into our last layer. This is common practice when feeding
@@ -173,10 +174,12 @@ async function showModelDetails() {
     if (!model) { model = await tf.loadLayersModel(ModelPath); }
     tfvis.show.modelSummary({ name: 'Model Architecture', tab: 'Model' }, model);
 
-    const layer = model.layers.at(-1);
+    const layer = model.layers[0];
     tfvis.show.layer({ name: 'Layer Summary', tab: 'Model'}, layer);
 
     const weights = layer.getWeights(false);
+
+    // 5x5x3 x8
     const array = await weights[0].array();
     //tfvis.render.heatmap({ name: 'Weights', tab: 'Model'}, weights[0]);
 
