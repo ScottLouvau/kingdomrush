@@ -22,12 +22,12 @@ const IMAGE_HEIGHT = 17;
 const IMAGE_CHANNELS = 3; // 1;
 const IMAGE_SIZE = IMAGE_WIDTH * IMAGE_HEIGHT * IMAGE_CHANNELS;
 
-const NUM_DATASET_ELEMENTS = 540;
+const NUM_DATASET_ELEMENTS = 334;
 const NUM_TRAIN_ELEMENTS = Math.floor(NUM_DATASET_ELEMENTS * 0.75);
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 
 const CountsUrl = `../data/train-sprites/pip/counts.json`;
-const SpriteUrl = `../data/train-sprites/pip/pip.png`;
+const SpriteUrl = `../data/train-sprites/pip/pips.png`;
 
 /**
  * A class that fetches the sprited Towers dataset and returns shuffled batches.

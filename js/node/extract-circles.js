@@ -125,6 +125,9 @@ function build(set, baseR, pipName, pipLevel, test) {
         if (parseInt(pipName[0]) !== abilityCount) {
             // If there aren't this number of abilities for this tower, it's other (hitting the background map)
             color = "other";
+
+            // Only look at the L1 pips for 'wrong count' conditions
+            if (pipLevel !== 1) { return; }
         } else if (pipLevel > maxLevel) {
             // If this ability doesn't have that many levels, it's silver (hitting the ring)
             //color = "silver";

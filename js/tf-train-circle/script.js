@@ -1,6 +1,6 @@
 import { TowerData } from './data.js';
 
-const ModelPath = '../data/models/pips-v1/pips.json';
+const ModelPath = '../data/models/pips-v2/pips.json';
 const classNames = ['black', 'blue', 'other'];
 const NUM_CLASSES = 3;
 
@@ -8,12 +8,12 @@ const IMAGE_WIDTH = 17;
 const IMAGE_HEIGHT = 17;
 const IMAGE_CHANNELS = 3; // 1;
 
-const NUM_DATASET_ELEMENTS = 540;
+const NUM_DATASET_ELEMENTS = 334;
 const NUM_TRAIN_ELEMENTS = Math.floor(NUM_DATASET_ELEMENTS * 0.80);
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 
 const BATCH_SIZE = 8;
-const EPOCH_COUNT = 20;
+const EPOCH_COUNT = 10;
 
 let model = null;
 
@@ -144,7 +144,8 @@ async function showExamples(data) {
     }
 }
 
-function doPrediction(model, data, testDataSize = 100) {
+function doPrediction(model, data, testDataSize) {
+    if (!testDataSize) { testDataSize = Math.floor(Math.min(250, NUM_TEST_ELEMENTS / 3)); }
     const testData = data.nextTestBatch(testDataSize);
     const testxs = testData.xs.reshape([testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]);
     const labels = testData.labels.argMax(-1);
