@@ -166,6 +166,32 @@ async function showPredictionQuality(model, data) {
     tfvis.render.confusionMatrix({ name: 'Confusion Matrix', tab: 'Evaluation' }, { values: confusionMatrix, tickLabels: classNames });
 
     labels.dispose();
+    tfvis.visor().setActiveTab('Evaluation');
+}
+
+async function showModelDetails() {
+    if (!model) { model = await tf.loadLayersModel(ModelPath); }
+    tfvis.show.modelSummary({ name: 'Model Architecture', tab: 'Model' }, model);
+
+    const layer = model.layers.at(-1);
+    tfvis.show.layer({ name: 'Layer Summary', tab: 'Model'}, layer);
+
+    const weights = layer.getWeights(false);
+    const array = await weights[0].array();
+    //tfvis.render.heatmap({ name: 'Weights', tab: 'Model'}, weights[0]);
+
+    // Create a container in the visor
+    // const surface = tfvis.visor().surface({ name: 'Weights', tab: 'Model' });
+
+    // const canvas = document.createElement('canvas');
+    // canvas.width = IMAGE_WIDTH;
+    // canvas.height = IMAGE_HEIGHT;
+    // canvas.style = 'margin: 4px;';
+
+    // await tf.browser.toPixels(weights, canvas);
+    // surface.drawArea.appendChild(canvas);
+
+    tfvis.visor().setActiveTab('Model');
 }
 
 const data = new TowerData();
@@ -189,10 +215,7 @@ async function retrain() {
 }
 
 async function predict() {
-    if (model === null) {
-        model = await tf.loadLayersModel(ModelPath);
-    }
-
+    if (!model) { model = await tf.loadLayersModel(ModelPath); }
     await showPredictionQuality(model, data);
 }
 
@@ -205,3 +228,4 @@ async function run() {
 document.addEventListener('DOMContentLoaded', run);
 document.getElementById('retrain').addEventListener('click', retrain);
 document.getElementById('predict').addEventListener('click', predict);
+document.getElementById('details').addEventListener('click', showModelDetails);
