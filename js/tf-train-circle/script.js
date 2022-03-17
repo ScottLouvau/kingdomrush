@@ -3,15 +3,10 @@ import { TowerData } from './data.js';
 //const ModelPath = '../data/models/pips-v2/pips.json';
 const ModelPath = '../data/models/pips-tiny/pips.json';
 const classNames = ['black', 'blue', 'other'];
-const NUM_CLASSES = 3;
 
 const IMAGE_WIDTH = 17;
 const IMAGE_HEIGHT = 17;
 const IMAGE_CHANNELS = 3; // 1;
-
-const NUM_DATASET_ELEMENTS = 334;
-const NUM_TRAIN_ELEMENTS = Math.floor(NUM_DATASET_ELEMENTS * 0.80);
-const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 
 const BATCH_SIZE = 8;
 const EPOCH_COUNT = 10;
@@ -56,7 +51,7 @@ function getModel() {
     // Our last layer is a dense layer which has 10 output units, one for each
     // output class (i.e. 0, 1, 2, 3, 4, 5, 6, 7, 8, 9).
     model.add(tf.layers.dense({
-        units: NUM_CLASSES,
+        units: classNames.length,
         kernelInitializer: 'varianceScaling',
         activation: 'softmax'
     }));
@@ -82,17 +77,17 @@ async function train(model, data) {
     const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
 
     const [trainXs, trainYs] = tf.tidy(() => {
-        const d = data.nextTrainBatch(NUM_TRAIN_ELEMENTS);
+        const d = data.nextTrainBatch(data.trainCount);
         return [
-            d.xs.reshape([NUM_TRAIN_ELEMENTS, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]),
+            d.xs.reshape([data.trainCount, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]),
             d.labels
         ];
     });
 
     const [testXs, testYs] = tf.tidy(() => {
-        const d = data.nextTestBatch(NUM_TEST_ELEMENTS);
+        const d = data.nextTestBatch(data.testCount);
         return [
-            d.xs.reshape([NUM_TEST_ELEMENTS, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]),
+            d.xs.reshape([data.testCount, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]),
             d.labels
         ];
     });
@@ -125,8 +120,8 @@ async function showExamples(data) {
         });
 
         let imageClass = -1;
-        for (let j = 0; j < NUM_CLASSES; ++j) {
-            if (labels[i * NUM_CLASSES + j] === 1) {
+        for (let j = 0; j < classNames.length; ++j) {
+            if (labels[i * classNames.length + j] === 1) {
                 imageClass = j;
                 break;
             }
@@ -146,7 +141,7 @@ async function showExamples(data) {
 }
 
 function doPrediction(model, data, testDataSize) {
-    if (!testDataSize) { testDataSize = Math.floor(Math.min(250, NUM_TEST_ELEMENTS / 3)); }
+    if (!testDataSize) { testDataSize = Math.floor(Math.min(250, data.testCount / 3)); }
     const testData = data.nextTestBatch(testDataSize);
     const testxs = testData.xs.reshape([testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]);
     const labels = testData.labels.argMax(-1);

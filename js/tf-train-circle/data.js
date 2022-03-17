@@ -15,16 +15,13 @@
  * =============================================================================
  */
 
-const NUM_CLASSES = 3;
+const classNames = ['black', 'blue', 'other'];
 
 const IMAGE_WIDTH = 17;
 const IMAGE_HEIGHT = 17;
 const IMAGE_CHANNELS = 3; // 1;
-const IMAGE_SIZE = IMAGE_WIDTH * IMAGE_HEIGHT * IMAGE_CHANNELS;
 
-const NUM_DATASET_ELEMENTS = 334;
-const NUM_TRAIN_ELEMENTS = Math.floor(NUM_DATASET_ELEMENTS * 0.75);
-const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
+const TRAIN_PERCENTAGE = 0.75;
 
 const CountsUrl = `../data/train-sprites/pip/counts.json`;
 const SpriteUrl = `../data/train-sprites/pip/pips.png`;
@@ -36,17 +33,53 @@ export class TowerData {
   constructor() {
     this.shuffledTrainIndex = 0;
     this.shuffledTestIndex = 0;
+
+    this.width = IMAGE_WIDTH;
+    this.height = IMAGE_HEIGHT;
+    this.channels = IMAGE_CHANNELS;
+    this.labels = classNames;
   }
 
   async load() {
-    const datasetBytes = new Uint8Array(NUM_DATASET_ELEMENTS * IMAGE_SIZE);
+    let total = 0;
+
+    await fetch(CountsUrl).then(response => response.text()).then(data => {
+      // Labels come as a count per tower type in class order, as are the images
+      const counts = JSON.parse(data);
+
+      for (var towerName in counts) {
+        total += counts[towerName];
+      }
+
+      let labels = new Uint8Array(total * this.labels.length);
+      labels.fill(0);
+
+      let out = 0;
+      let classIndex = 0;
+      for (var towerName in counts) {
+        // Find how many images there are for this class
+        var count = counts[towerName];
+
+        // Mark the next 'count' images as the current class index
+        for (var j = 0; j < count; ++j) {
+          labels[out * this.labels.length + classIndex] = 1;
+          out++;
+        }
+
+        classIndex++;
+      }
+
+      this.datasetLabels = labels;
+    });
+
+    const datasetBytes = new Uint8Array(total * this.width * this.height * this.channels);
     this.datasetImages = datasetBytes;
 
     // Make a request for the sprited images.
     const img = new Image();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const imgRequest = new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       img.crossOrigin = '';
       img.onload = () => {
         img.width = img.naturalWidth;
@@ -59,8 +92,8 @@ export class TowerData {
         const a8 = imageData.data;
 
         // Put each 80x80 sprites RGB values into the array in single rows
-        const rows = img.height / IMAGE_HEIGHT;
-        const cols = img.width / IMAGE_WIDTH;
+        const rows = img.height / this.height;
+        const cols = img.width / this.width;
 
         console.log(`Spritesheet is ${img.naturalWidth}w x ${img.naturalHeight}h as ${rows} rows by ${cols} cols.`);
 
@@ -68,11 +101,11 @@ export class TowerData {
         let out = 0;
         for (let row = 0; row < rows; ++row) {
           for (let col = 0; col < cols; ++col) {
-            if (row * cols + col >= NUM_DATASET_ELEMENTS) { break; }
+            if (row * cols + col >= total) { break; }
 
-            for (let y = 0; y < IMAGE_HEIGHT; ++y) {
-              for (let x = 0; x < IMAGE_WIDTH; ++x) {
-                let px = (row * IMAGE_HEIGHT + y) * img.width + (col * IMAGE_WIDTH) + x;
+            for (let y = 0; y < this.height; ++y) {
+              for (let x = 0; x < this.width; ++x) {
+                let px = (row * this.height + y) * img.width + (col * this.width) + x;
                 let j = 4 * px;
                 datasetBytes[out++] = a8[j];
                 datasetBytes[out++] = a8[j + 1];
@@ -93,38 +126,15 @@ export class TowerData {
       img.src = SpriteUrl;
     });
 
-    const labelsRequest = fetch(CountsUrl).then(response => response.text()).then(data => {
-      // Labels come as a count per tower type in class order, as are the images
-      const counts = JSON.parse(data);
-      let labels = new Uint8Array(NUM_DATASET_ELEMENTS * NUM_CLASSES);
-      labels.fill(0);
-
-      let out = 0;
-      let towerClassIndex = 0;
-      for (var towerName in counts) {
-        // Find how many images there are for this class
-        var count = counts[towerName];
-
-        // Mark the next 'count' images as the current class index
-        for (var j = 0; j < count; ++j) {
-          labels[out * NUM_CLASSES + towerClassIndex] = 1;
-          out++;
-        }
-
-        towerClassIndex++;
-      }
-
-      this.datasetLabels = labels;
-    });
-
-    const [imgResponse, labelsResponse] =
-      await Promise.all([imgRequest, labelsRequest]);
+    this.total = total;
+    this.trainCount = Math.floor(total * TRAIN_PERCENTAGE);
+    this.testCount = total - this.trainCount;
 
     // Create shuffled indices into the data set and separate into those
     // which will be for training and testing.
-    const shuffledIndices = tf.util.createShuffledIndices(NUM_DATASET_ELEMENTS);
-    this.trainIndices = shuffledIndices.slice(0, NUM_TRAIN_ELEMENTS);
-    this.testIndices = shuffledIndices.slice(NUM_TRAIN_ELEMENTS);
+    const shuffledIndices = tf.util.createShuffledIndices(total);
+    this.trainIndices = shuffledIndices.slice(0, this.trainCount);
+    this.testIndices = shuffledIndices.slice(this.trainCount);
   }
 
   nextTrainBatch(batchSize) {
@@ -144,23 +154,23 @@ export class TowerData {
   }
 
   nextBatch(batchSize, data, index) {
-    const batchImagesArray = new Float32Array(batchSize * IMAGE_SIZE);
-    const batchLabelsArray = new Uint8Array(batchSize * NUM_CLASSES);
+    const batchImagesArray = new Float32Array(batchSize * this.width * this.height * this.channels);
+    const batchLabelsArray = new Uint8Array(batchSize * this.labels.length);
 
     for (let i = 0; i < batchSize; i++) {
       const idx = index();
 
-      for (let j = 0; j < IMAGE_SIZE; ++j) {
-        batchImagesArray[i * IMAGE_SIZE + j] = data[0][idx * IMAGE_SIZE + j] / 255;
+      for (let j = 0; j < this.width * this.height * this.channels; ++j) {
+        batchImagesArray[i * this.width * this.height * this.channels + j] = data[0][idx * this.width * this.height * this.channels + j] / 255;
       }
 
-      for (let j = 0; j < NUM_CLASSES; ++j) {
-        batchLabelsArray[i * NUM_CLASSES + j] = data[1][idx * NUM_CLASSES + j];
+      for (let j = 0; j < this.labels.length; ++j) {
+        batchLabelsArray[i * this.labels.length + j] = data[1][idx * this.labels.length + j];
       }
     }
 
-    const xs = tf.tensor2d(batchImagesArray, [batchSize, IMAGE_SIZE]);
-    const labels = tf.tensor2d(batchLabelsArray, [batchSize, NUM_CLASSES]);
+    const xs = tf.tensor2d(batchImagesArray, [batchSize, this.width * this.height * this.channels]);
+    const labels = tf.tensor2d(batchLabelsArray, [batchSize, this.labels.length]);
 
     return { xs, labels };
   }
