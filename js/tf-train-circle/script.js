@@ -9,7 +9,7 @@ const IMAGE_HEIGHT = 17;
 const IMAGE_CHANNELS = 3; // 1;
 
 const BATCH_SIZE = 8;
-const EPOCH_COUNT = 10;
+const EPOCH_COUNT = 15;
 
 let model = null;
 
