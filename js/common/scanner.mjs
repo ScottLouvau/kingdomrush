@@ -12,14 +12,15 @@ const ConfidenceThreshold = 0.95;
 const SecondsPerFrame = 5;
 const PlanEmptyLineAfterSeconds = 40;
 
+const pipNames = ['black', 'blue', 'other'];
 const pipGeo = {
-    w: 17, h: 17,
     high: { relX: 0, relY: -17 },
     "2x": { n: "2x", relX: -78, relY: -118, w: 17, h: 17 },
-    "2y": { n: "2y", relX: 62, relY: -118 },
+    "2y": { n: "2y", relX: 62, relY: -118, w: 17, h: 17 },
     "3x": { n: "3x", relX: -95, relY: -99, w: 17, h: 17 },
-    "3y": { n: "3y", relX: -8, relY: -144 },
-    "3z": { n: "3z", relX: 79, relY: -99 },
+    "3y": { n: "3y", relX: -8, relY: -144, w: 17, h: 17 },
+    "3z": { n: "3z", relX: 79, relY: -99, w: 17, h: 17 },
+    l1: { relX: 0, relY: 0 },
     l2: { relX: 25, relY: 10 },
     l3: { relX: 25 + 9, relY: 10 + 24 }
 };
@@ -33,95 +34,61 @@ export default class Scanner {
         this.diagnosticDrawing = null;
     }
 
-    circleAtPosition(ctx, drawing) {
+    circleAtPosition(ctx) {
         const id = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
         if (!this.positions) { return null; }
 
-        const positionCount = Object.keys(this.positions).length;
-        const pixels = { array: new Float32Array(4 * positionCount * pipGeo.w * pipGeo.h * 3), out: 0 };
-
         // Look for ability circles at 2x1 and 3x1 high and low for every position
+        const allPositionL1s = [];
         for (let posName in this.positions) {
             for (let high of [true, false]) {
                 for (let abilityCount of [2, 3]) {
                     let r = this.toRect(this.positions[posName], pipGeo[`${abilityCount}x`]);
                     if (high) { r.y -= 17; }
-                    this.appendPixels(id, r, pixels);
+                    allPositionL1s.push({ posName: posName, high: high, abilityCount: abilityCount, ...r });
                 }
             }
         }
 
-        const inTensor = this.tf.tensor4d(pixels.array, [4 * positionCount, pipGeo.w, pipGeo.h, 3]);
-        const outTensor = this.pipModel.predict(inTensor);
-        const firstCircle = this.firstCircle(outTensor);
-
-        inTensor.dispose();
-        outTensor.dispose();
+        const results = this.classify(id, allPositionL1s, this.pipModel, pipNames, true);
+        let firstCircle = null;
+        for (let circle of results) {
+            if (circle.label !== "other" && circle.confidence >= 0.9) {
+                firstCircle = { posName: circle.posName, ...this.positions[circle.posName] };
+                if (circle.high) firstCircle.y -= 17;
+                break;
+            }
+        }
 
         return this.upgradeLevels(id, firstCircle);
-    }
-
-    firstCircle(outTensor) {
-        const array = outTensor.dataSync();
-
-        let i = 0;
-        for (let posName in this.positions) {
-            for (let high of [true, false]) {
-                for (let abilityCount of [2, 3]) {
-                    if (array[3 * i + 2] < 0.1) {
-                        return { posName: posName, high: high, abilityCount: abilityCount };
-                    }
-
-                    i++;
-                }
-            }
-        }
-
-        return null;
     }
 
     upgradeLevels(id, firstCircle) {
         if (firstCircle === null) { return null; }
         let result = { posName: firstCircle.posName };
 
-        let rootR = this.positions[firstCircle.posName];
-        if (firstCircle.high) { rootR.y -= 17; }
-
-        const pixels = { array: new Float32Array(3 * firstCircle.abilityCount * pipGeo.w * pipGeo.h * 3), out: 0 };
-
         // Look for ability circles for L1, L2, L3 for each ability present
+        const pipLevels = [];
         for (let ability of (firstCircle.abilityCount === 3 ? ["3x", "3y", "3z"] : ["2x", "2y"])) {
             for (let level of [1, 2, 3]) {
-                let r = { ...this.toRect(rootR, pipGeo[ability]), w: pipGeo.w, h: pipGeo.h };
-                if (level !== 1) {
-                    r = this.toRect(r, pipGeo[`l${level}`]);
-                }
-
-                this.appendPixels(id, r, pixels)
+                let r = this.toRect(firstCircle, pipGeo[ability]);
+                r = this.toRect(r, pipGeo[`l${level}`]);
+                pipLevels.push({ ability: ability, letter: ability[1], level: level, ...r });
             }
         }
 
-        const inTensor = this.tf.tensor4d(pixels.array, [3 * firstCircle.abilityCount, pipGeo.w, pipGeo.h, 3]);
-        const outTensor = this.pipModel.predict(inTensor);
-        const array = outTensor.dataSync();
-
-        inTensor.dispose();
-        outTensor.dispose();
+        const results = this.classify(id, pipLevels, this.pipModel, pipNames);
 
         let i = 0;
         for (let ability of (firstCircle.abilityCount === 3 ? ["3x", "3y", "3z"] : ["2x", "2y"])) {
             let pips = [];
+            let letter = results[i].letter;
 
             for (let level of [1, 2, 3]) {
-                const black = array[3 * i + 0];
-                const blue = array[3 * i + 1];
-                const other = array[3 * i + 2];
-                const color = (black > 0.9 ? "black" : (blue > 0.9 ? "blue" : "other"));
-                pips[level] = color;
+                pips[level] = (results[i].confidence >= 0.9 ? results[i].label : "other");
                 i++;
             }
 
-            let letter = ability[1];
             result[letter] = null;
 
             if (pips[3] === "blue") {
@@ -174,72 +141,24 @@ export default class Scanner {
 
     scanImage(ctx, positions, skipDiagnostics) {
         positions ??= this.positions;
-        const positionCount = Object.keys(positions).length;
+        const id = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
 
         // Get the profile rectangle pixels for each tower position on the map
-        const id = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-        const pixels = { array: new Float32Array(positionCount * settings.geo.profile.w * settings.geo.profile.h * 3), out: 0 };
-
+        const allTowerProfiles = [];
         for (let posName in positions) {
-            let r = this.toRect(positions[posName], settings.geo.profile);
-            this.appendPixels(id, r, pixels);
+            allTowerProfiles.push({ posName: posName, ...this.toRect(positions[posName], settings.geo.profile) });
         }
 
-        // Classify the tower at every position
-        const inTensor = this.tf.tensor4d(pixels.array, [positionCount, settings.geo.profile.w, settings.geo.profile.h, 3]);
-        const outTensor = this.towerModel.predict(inTensor);
-        const array = outTensor.dataSync();
-
-        inTensor.dispose();
-        outTensor.dispose();
+        const towerResults = this.classify(id, allTowerProfiles, this.towerModel, towerNames, skipDiagnostics);
 
         // Return the top predictions at each
         let state = {};
 
-        const classCount = towerNames.length;
-        let i = 0;
-        for (let posName in positions) {
-            let matches = { best: null, prev: null };
-
-            for (let j = 0; j < classCount; ++j) {
-                let v = array[j + classCount * i];
-
-                if (matches.best === null || matches.best.confidence < v) {
-                    matches.prev = matches.best;
-                    matches.best = { name: towerNames[j], confidence: v };
-                } else if (matches.prev === null || matches.prev.confidence < v) {
-                    matches.prev = { name: towerNames[j], confidence: v };
-                }
-            }
-
-            state[posName] = matches;
-            i++;
-        }
-
-        if (!skipDiagnostics) {
-            this.drawDiagnostics(positions, state);
+        for (let result of towerResults) {
+            state[result.posName] = { best: { name: result.label, confidence: result.confidence } };
         }
 
         return state;
-    }
-
-    drawDiagnostics(positions, state) {
-        if (!this.diagnosticDrawing) { return; }
-
-        for (let posName in positions) {
-            const prediction = state?.[posName]?.best;
-
-            if (!prediction) { continue; }
-            if (prediction.confidence >= 0.95 && (prediction.name === "None" || prediction.name === "Map")) { continue; }
-
-            const color = (prediction.confidence >= 0.95 ? "#0f0" : (prediction.confidence >= 0.85 ? "#f92" : "#f00"));
-            const options = { left: true, fontSizePx: 18, textColor: color, backColor: '#222', borderColor: color };
-            const r = this.toRect(positions[posName], settings.geo.towerDiagnostics);
-
-            this.diagnosticDrawing.drawBox(r, { borderColor: color });
-            this.diagnosticDrawing.drawText({ x: r.x, y: r.y + 17 }, prediction.name, options);
-            this.diagnosticDrawing.drawText({ x: r.x, y: r.y + r.h }, `${(prediction.confidence * 100).toFixed(0)}`, options);
-        }
     }
 
     identifyMap(ctx) {
@@ -316,8 +235,8 @@ export default class Scanner {
 
         message += matches.best.name;
 
-        if (matches.best.confidence < 0.98 || matches.prev.confidence > 0.05) {
-            message += `     [${(matches?.best?.confidence * 100).toFixed(0)}% or ${(matches?.prev?.confidence * 100).toFixed(0)}% ${matches?.prev?.name}]`;
+        if (matches.best.confidence < 0.98) {
+            message += `     [${(matches?.best?.confidence * 100).toFixed(0)}%]`;
         }
 
         this.log(message);
@@ -415,6 +334,96 @@ export default class Scanner {
         }
 
         return this.plan.join('\r\n');
+    }
+
+
+    classify(id, rects, model, labels, skipDiagnostics) {
+        if (!rects.length) { return []; }
+
+        const rectCount = rects.length;
+        const labelCount = labels.length;
+        const width = rects[0].w;
+        const height = rects[0].h;
+
+        // Extract all requested rectangle pixels into a tensor
+        const pixels = { array: new Float32Array(rectCount * width * height * 3), out: 0 };
+
+        for (let i = 0; i < rectCount; ++i) {
+            this.appendPixels(id, rects[i], pixels);
+        }
+
+        const inTensor = this.tf.tensor4d(pixels.array, [rectCount, width, height, 3]);
+
+        // Classify each rectangle
+        const outTensor = model.predict(inTensor);
+
+        // Return each rectangle with a label and confidence level
+        let results = [];
+        const array = outTensor.dataSync();
+
+        for (let i = 0; i < rectCount; ++i) {
+            let label = null;
+            let confidence = 0;
+
+            for (let j = 0; j < labelCount; ++j) {
+                const thisConfidence = array[j + i * labelCount];
+                if (thisConfidence > confidence) {
+                    confidence = thisConfidence;
+                    label = labels[j];
+                }
+            }
+
+            results[i] = { ...rects[i], label: label, confidence: confidence };
+        }
+
+        inTensor.dispose();
+        outTensor.dispose();
+
+        if (this.diagnosticDrawing && !skipDiagnostics) {
+            this.drawDiagnostics(results);
+        }
+
+        return results;
+    }
+
+    drawDiagnostics(results) {
+        for (let result of results) {
+            if (!result.label) { continue; }
+            if (result.confidence >= 0.95 && (result.label === "None" || result.label === "Map")) { continue; }
+
+            if (result.w < 40) {
+                this.diagnosticDrawing.drawBox(result, { borderColor: this.color(result) });
+            } else {
+                const color = this.color(result);
+                const options = { left: true, fontSizePx: 18, textColor: color, backColor: '#222', borderColor: color };
+
+                this.diagnosticDrawing.drawBox(result, { borderColor: color });
+                this.diagnosticDrawing.drawText({ x: result.x, y: result.y + 17 }, result.label, options);
+                this.diagnosticDrawing.drawText({ x: result.x, y: result.y + result.h }, `${(result.confidence * 100).toFixed(0)}`, options);
+            }
+        }
+    }
+
+    color(result) {
+        if (result.confidence < 0.85) {
+            // Red
+            return "#f00";
+        } else if (result.confidence < 0.95) {
+            // Orange
+            return "#f92";
+        } else if (result.label === "blue") {
+            // Teal
+            return "#0ff";
+        } else if (result.label === "black") {
+            // Off-Black
+            return "#222";
+        } else if (result.label === "other") {
+            // Brown
+            return "#a74";
+        } else {
+            // Green
+            return "#0f0";
+        }
     }
 
     log(message) {

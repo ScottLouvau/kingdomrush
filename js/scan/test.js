@@ -132,7 +132,7 @@ function scanImage() {
     ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, 1920, 1080);
     drawing.drawImage(can);
     state = scanner.nextFrame(ctx);
-    scanner.circleAtPosition(ctx);
+    let circle = scanner.circleAtPosition(ctx);
 }
 
 function checkForNewUpgrade(last, circle, letter) {
