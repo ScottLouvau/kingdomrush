@@ -72,72 +72,93 @@ async function extract(outBasePath) {
 }
 
 function expandToAll(test, positions) {
-    if (!test.on) { return []; }
-
-    const circle = test.circle || test.cAlt;
-    let baseR = positions[circle.posName];
-    if (test.on[0] === 's' || test.on[0] === 't') {
-        baseR = toRect(baseR, pipGeo.high);
-    }
-
     let set = [];
 
-    build(set, baseR, "2x", 1, test);
-    build(set, baseR, "2x", 2, test);
-    build(set, baseR, "2x", 3, test);
+    if (test.on) {
+        const circle = test.circle || test.cAlt;
+        let baseR = positions[circle.posName];
 
-    build(set, baseR, "2y", 1, test);
-    build(set, baseR, "2y", 2, test);
-    build(set, baseR, "2y", 3, test);
+        if (test.on[0] === 's' || test.on[0] === 't') {
+            baseR = toRect(baseR, pipGeo.high);
+        }
 
-    build(set, baseR, "3x", 1, test);
-    build(set, baseR, "3x", 2, test);
-    build(set, baseR, "3x", 3, test);
+        build(set, baseR, "2x", 1, test);
+        build(set, baseR, "2x", 2, test);
+        build(set, baseR, "2x", 3, test);
 
-    build(set, baseR, "3y", 1, test);
-    build(set, baseR, "3y", 2, test);
-    build(set, baseR, "3y", 3, test);
+        build(set, baseR, "2y", 1, test);
+        build(set, baseR, "2y", 2, test);
+        build(set, baseR, "2y", 3, test);
 
-    build(set, baseR, "3z", 1, test);
-    build(set, baseR, "3z", 2, test);
-    build(set, baseR, "3z", 3, test);
+        build(set, baseR, "3x", 1, test);
+        build(set, baseR, "3x", 2, test);
+        build(set, baseR, "3x", 3, test);
+
+        build(set, baseR, "3y", 1, test);
+        build(set, baseR, "3y", 2, test);
+        build(set, baseR, "3y", 3, test);
+
+        build(set, baseR, "3z", 1, test);
+        build(set, baseR, "3z", 2, test);
+        build(set, baseR, "3z", 3, test);
+    }
+
+    if (test.not) {
+        for (let posName of test.not) {
+            for (let high of [false, true]) {
+                for (let ability of ["2x", "3x"]) {
+                    let pipLevel = 1;
+                    let baseR = positions[posName];
+                    if (high) { baseR = toRect(baseR, pipGeo.high); }
+                    build(set, baseR, ability, pipLevel, null);
+                }
+            }
+        }
+    }
 
     return set;
 }
 
 function build(set, baseR, pipName, pipLevel, test) {
-    const circle = test.circle ?? test.cAlt;
-    const on = test.on;
-    const upgrade = pipName[1];
+    let color = null;
 
-    const level = circle[upgrade];
+    if (!test) {
+        // Negative Test. All colors should match 'other'
+        color = "other";
+    } else {
+        const circle = test.circle ?? test.cAlt;
+        const on = test.on;
+        const upgrade = pipName[1];
 
-    // Barracks have three different abilities, other towers have two
-    const abilityCount = (on[0] === 'p' ? 3 : 2);
+        const level = circle[upgrade];
 
-    // Abilities have three levels except Holy Order Shields and Tesla Supercharged Bolt
-    let maxLevel = 3;
-    if (on === "p4" && upgrade === 'y') { maxLevel = 1; }
-    if (on === "t5" && upgrade === 'x') { maxLevel = 2; }
+        // Barracks have three different abilities, other towers have two
+        const abilityCount = (on[0] === 'p' ? 3 : 2);
 
-    let color = test[pipName + pipLevel];
-    if (!color) {
-        if (parseInt(pipName[0]) !== abilityCount) {
-            // If there aren't this number of abilities for this tower, it's other (hitting the background map)
-            color = "other";
+        // Abilities have three levels except Holy Order Shields and Tesla Supercharged Bolt
+        let maxLevel = 3;
+        if (on === "p4" && upgrade === 'y') { maxLevel = 1; }
+        if (on === "t5" && upgrade === 'x') { maxLevel = 2; }
 
-            // Only look at the L1 pips for 'wrong count' conditions
-            if (pipLevel !== 1) { return; }
-        } else if (pipLevel > maxLevel) {
-            // If this ability doesn't have that many levels, it's silver (hitting the ring)
-            //color = "silver";
-            color = "other";
-        } else if (level >= pipLevel) {
-            // If this many levels are unlocked, pip should be blue
-            color = "blue";
-        } else {
-            // Otherwise, pip is black
-            color = "black";
+        color = test[pipName + pipLevel];
+        if (!color) {
+            if (parseInt(pipName[0]) !== abilityCount) {
+                // If there aren't this number of abilities for this tower, it's other (hitting the background map)
+                color = "other";
+
+                // Only look at the L1 pips for 'wrong count' conditions
+                if (pipLevel !== 1) { return; }
+            } else if (pipLevel > maxLevel) {
+                // If this ability doesn't have that many levels, it's silver (hitting the ring)
+                //color = "silver";
+                color = "other";
+            } else if (level >= pipLevel) {
+                // If this many levels are unlocked, pip should be blue
+                color = "blue";
+            } else {
+                // Otherwise, pip is black
+                color = "black";
+            }
         }
     }
 

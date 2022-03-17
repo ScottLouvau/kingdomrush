@@ -6,7 +6,6 @@
     { "file": "F477", "map": "L5", "on": "r4", "circle": { "posName": "E7", "x": 0, "y": 0 }, "2x3": "other" },
     { "file": "F628", "map": "L5", "on": "r4", "circle": { "posName": "E7", "x": 1, "y": 0 } },
     { "file": "F991", "map": "L5", "on": "r4", "circle": { "posName": "E7", "x": 2, "y": 3 } },
-
     
     { "file": "F170", "map": "L9", "circle": null },
     { "file": "F370", "map": "L9", "circle": null },
@@ -44,7 +43,7 @@
     { "file": "F154", "map": "L22", "on": "t5", "circle": { "posName": "C1", "x": 0, "y": 2 } },
     { "file": "F155", "map": "L22", "on": "t5", "circle": { "posName": "C1", "x": 0, "y": 3 } },
     { "file": "F638", "map": "L22", "on": "s5", "circle": { "posName": "F3", "x": 1, "y": 0 } },
-    { "file": "F791", "map": "L22", "on": "t5", "circle": { "posName": "E5", "x": 0, "y": 0 }, "2y3": "other" },
+    { "file": "F791", "map": "L22", "on": "t5", "circle": { "posName": "E5", "x": 0, "y": 0 }, "2y3": "other", "not": ["E8"] },
     { "file": "F820", "map": "L22", "on": "t5", "circle": { "posName": "E5", "x": 0, "y": 2 } },
     { "file": "F1060", "map": "L22", "on": "s5", "circle": { "posName": "B5", "x": 1, "y": 0 } },
     { "file": "F1333", "map": "L22", "on": "t5", "circle": { "posName": "G1", "x": 0, "y": 3 } },
