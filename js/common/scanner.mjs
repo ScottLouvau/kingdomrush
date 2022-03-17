@@ -50,11 +50,11 @@ export default class Scanner {
             }
         }
 
-        const results = this.classify(id, allPositionL1s, this.pipModel, pipNames, true);
+        const results = this.classify(id, allPositionL1s, this.pipModel, pipNames);//, true);
         let firstCircle = null;
         for (let circle of results) {
             if (circle.label !== "other" && circle.confidence >= 0.9) {
-                firstCircle = { posName: circle.posName, ...this.positions[circle.posName] };
+                firstCircle = { posName: circle.posName, ...this.positions[circle.posName], abilityCount: circle.abilityCount };
                 if (circle.high) firstCircle.y -= 17;
                 break;
             }
