@@ -59,15 +59,29 @@ async function onFrame(e) {
 
     let circle = null;
     if (elapsed >= nextAbilityScan) {
-        console.log(`Ability @${elapsed.toFixed(2)}, wanted @${nextAbilityScan.toFixed(2)}`);
+        //console.log(`Ability @${elapsed.toFixed(2)}, wanted @${nextAbilityScan.toFixed(2)}`);
         nextAbilityScan = elapsed + circleIntervalSec;
-        circle = scanner.circleAtPosition(ctx);
+
+        const start = performance.now();
+        let circleIterations = 1;
+        for (let i = 0; i < circleIterations; ++i) {
+            circle = scanner.circleAtPosition(ctx);
+        }
+        const end = performance.now();
+        //console.log(`${circleIterations}x Circle in ${(end - start).toFixed(0)}ms`);
     }
 
     if (elapsed >= nextTowerScan) {
-        console.log(`Tower @${elapsed.toFixed(2)}, wanted @${nextTowerScan.toFixed(2)}`);
+        //console.log(`Tower @${elapsed.toFixed(2)}, wanted @${nextTowerScan.toFixed(2)}`);
         nextTowerScan = elapsed + scanIntervalSec;
-        state = scanner.nextFrame(ctx);
+
+        const start = performance.now();
+        let towerIterations = 1;
+        for (let i = 0; i < towerIterations; ++i) {
+            state = scanner.nextFrame(ctx);
+        }
+        const end = performance.now();
+        console.log(`${towerIterations}x Tower in ${(end - start).toFixed(0)}ms`);
 
         if (!circles.map && scanner.mapName) {
             circles.map = scanner.mapName;
@@ -110,7 +124,7 @@ async function onFrame(e) {
     if (next < duration) {
         const waitMs = Math.max(10, 1000 * (next - 0.05 - video.currentTime) / playbackRate);
         setTimeout(onFrame, waitMs);
-        console.log(`Waiting ${waitMs.toFixed(0)} ms`);
+        //console.log(`Waiting ${waitMs.toFixed(0)} ms`);
     }
 }
 
@@ -222,7 +236,8 @@ function keyDown(e) {
 
 async function run() {
     const model = await tf.loadGraphModel('../data/models/v2-u8-graph/model.json');
-    scanner = new Scanner(tf, model);
+    const pipModel = await tf.loadLayersModel('../data/models/pips-tiny/pips.json');
+    scanner = new Scanner(tf, model, null, pipModel);
 
     image = document.createElement('img');
     image.addEventListener('load', scanImage);
@@ -256,9 +271,6 @@ async function run() {
     // Enable pause on each change if querystring requests
     const params = new URLSearchParams(window.location.search);
     pauseOnChange = (!!params.get("pause"));
-
-    // Warm up AI with an empty frame
-    scanner.nextFrame(ctx);
 }
 
 document.addEventListener('DOMContentLoaded', run);

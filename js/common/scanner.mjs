@@ -2,7 +2,7 @@ import allPositions from "../data/positions.min.mjs";
 import towers from "../data/towers.min.mjs";
 import settings from '../data/settings.mjs';
 
-const classNames = ['Arca', 'Arch', 'Arch2', 'Arch3', 'Arti', 'Arti2', 'Arti3', 'Barb', 'Barr', 'Barr2', 'Barr3', 'BigB', 'Holy', 'Mage', 'Mage2', 'Mage3', 'Map', 'Musk', 'None', 'Rang', 'Sorc', 'Tesl'];
+const towerNames = ['Arca', 'Arch', 'Arch2', 'Arch3', 'Arti', 'Arti2', 'Arti3', 'Barb', 'Barr', 'Barr2', 'Barr3', 'BigB', 'Holy', 'Mage', 'Mage2', 'Mage3', 'Map', 'Musk', 'None', 'Rang', 'Sorc', 'Tesl'];
 const IMAGE_WIDTH = 80;
 const IMAGE_HEIGHT = 80;
 const IMAGE_CHANNELS = 3;
@@ -12,268 +12,229 @@ const ConfidenceThreshold = 0.95;
 const SecondsPerFrame = 5;
 const PlanEmptyLineAfterSeconds = 40;
 
+const pipGeo = {
+    w: 17, h: 17,
+    high: { relX: 0, relY: -17 },
+    "2x": { n: "2x", relX: -78, relY: -118, w: 17, h: 17 },
+    "2y": { n: "2y", relX: 62, relY: -118 },
+    "3x": { n: "3x", relX: -95, relY: -99, w: 17, h: 17 },
+    "3y": { n: "3y", relX: -8, relY: -144 },
+    "3z": { n: "3z", relX: 79, relY: -99 },
+    l2: { relX: 25, relY: 10 },
+    l3: { relX: 25 + 9, relY: 10 + 24 }
+};
+
 export default class Scanner {
-    constructor(tf, model, logger) {
+    constructor(tf, towerModel, logger, pipModel) {
         this.tf = tf;
-        this.model = model;
+        this.towerModel = towerModel;
+        this.pipModel = pipModel;
         this.logger = logger;
         this.diagnosticDrawing = null;
     }
 
     circleAtPosition(ctx, drawing) {
-        let result = null;
-        const width = ctx.canvas.width;
-        const id = ctx.getImageData(0, 0, width, ctx.canvas.height);
-        const i8 = id.data;
+        const id = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        if (!this.positions) { return null; }
 
-        let sellR = null;
+        const positionCount = Object.keys(this.positions).length;
+        const pixels = { array: new Float32Array(4 * positionCount * pipGeo.w * pipGeo.h * 3), out: 0 };
+
+        // Look for ability circles at 2x1 and 3x1 high and low for every position
         for (let posName in this.positions) {
-            // Look for dark rectangle over '$' in "low" (Barr/Arch) and "high" (Mage/Arti) ability circles
-            sellR = this.toRect(this.positions[posName], { relX: -10, relY: 75, w: 20, h: 5 });
-            let color = this.colors(i8, width, sellR);
-            if (color.black < 0.9) {
-                sellR.y -= 17;
-                color = this.colors(i8, width, sellR);
-            }
-
-            // If neither area was dark, no circle here
-            if (color.black < 0.9) { continue; }
-
-            // Make sure we see the sell box silver top border to rule out a hint text box.
-            const borderR = { x: sellR.x, y: sellR.y - 4, w: 20, h: 3 };
-            color = this.colors(i8, width, borderR);
-            if (color.silver < 0.65) { continue; }
-
-            // This looks like an ability circle.
-            result = { posName: posName };
-
-            // Try looking for the 'Z' ability of X|Y|Z.
-            //  These checks will hit the map (other | silver) unless this is a three-ability circle.
-            const z = this.upgradeLevel(i8, width, { x: sellR.x + 96, y: sellR.y - 168, w: 5, h: 5 }, 3);
-
-            if (z !== null) {
-                // Three different upgrades (Barr)
-                result.x = this.upgradeLevel(i8, width, { x: sellR.x - 78, y: sellR.y - 168, w: 5, h: 5 }, 3);
-                result.y = this.upgradeLevel(i8, width, { x: sellR.x + 9, y: sellR.y - 213, w: 5, h: 5 }, 1);
-                result.z = z;
-            } else {
-                // Two upgrades (Arch/Mage/Arti)
-                result.x = this.upgradeLevel(i8, width, { x: sellR.x - 62, y: sellR.y - 187, w: 5, h: 5 }, 2);
-                result.y = this.upgradeLevel(i8, width, { x: sellR.x + 79, y: sellR.y - 187, w: 5, h: 5 }, 3);
-
-                // If this is an L2|3 tower upgrade, all pips will hit the map.
-                // If this is an L4|5 tower upgrade, L2|L3 will hit the silver right border on the top tower choice buttons.
-            }
-
-            // If any ability upgrade pips looked wrong, report no circle location
-            if (result?.x === null || result?.y === null || result?.z === null) { result = null; }
-
-            // Draw ability circle diagnostics if we thought we identified a circle
-            this.diagnosticDrawing?.drawBox({ x: sellR.x - 12, y: sellR.y - 4, w: 46, h: 46 }, { borderColor: (result ? "#0ff" : "#f0f") });
-
-            break;
-        }
-
-        // Redraw tower diagnostics (always)
-        this.drawDiagnostics();
-
-        return result;
-    }
-
-    upgradeLevel(i8, width, pipR, minPips) {
-        // Identify the ability level by looking for blue pips.
-        //  Ensure all expected pips are black | blue. Optional ones could be silver (hitting upgrade circle).
-        //  Pip positions which actually hit the map will be other | silver.
-
-        // L1 - must be black or blue
-        const l1 = this.colors(i8, width, pipR);
-        this.diagnosticDrawing?.drawBox({ x: pipR.x - 5, y: pipR.y - 5, w: pipR.w + 9, h: pipR.h + 9 }, { borderWidth: 3, borderColor: l1.primary });
-        if (l1.black < 0.8 && l1.blue < 0.8) { return null; }
-
-        // L2 - must be black or blue if two pips expected
-        pipR.x += 25;
-        pipR.y += 10;
-        const l2 = this.colors(i8, width, pipR);
-        this.diagnosticDrawing?.drawBox({ x: pipR.x - 5, y: pipR.y - 5, w: pipR.w + 9, h: pipR.h + 9 }, { borderWidth: 3, borderColor: l2.primary });
-        if (l2.other > 0.2) { return null; }
-        if (l2.silver > 0.2 && minPips > 1) { return null; }
-
-        // L3 - must not be silver if expected; must not be obscured if L2 is blue
-        pipR.x += 9;
-        pipR.y += 24;
-        const l3 = this.colors(i8, width, pipR);
-        this.diagnosticDrawing?.drawBox({ x: pipR.x - 5, y: pipR.y - 5, w: pipR.w + 9, h: pipR.h + 9 }, { borderWidth: 3, borderColor: l3.primary });
-        if (l3.other > 0.2 && l2.black < 0.8) { return null; }
-        if (l3.silver > 0.2 && minPips > 2) { return null; }
-
-        // If L3 was blue, confirm L2 and L1.
-        if (l3.blue >= 0.8) {
-            return (l2.blue >= 0.8 && l1.blue >= 0.8 ? 3 : null);
-        }
-
-        // If L2 is blue, confirm L1
-        if (l2.blue >= 0.8) {
-            return (l1.blue >= 0.8 ? 2 : null);
-        }
-
-        if (l1.blue >= 0.8) {
-            return 1;
-        }
-
-        return 0;
-    }
-
-    colors(i8, width, r) {
-        let result = { black: 0, blue: 0, silver: 0, other: 0 };
-
-        for (let y = r.y; y < r.y + r.h; ++y) {
-            for (let x = r.x; x < r.x + r.w; ++x) {
-                const i = 4 * (x + y * width);
-                let c = this.color(i8, i);
-
-                if (c.v <= 78) {
-                    // Low Value (brightness) => black
-                    result.black++;
-                } else if (c.s <= 0.25) {
-                    // Low Saturation => silver
-                    result.silver++;
-                } else if (c.h >= 170 && c.h <= 250) {
-                    // High Blue, Low Red => blue
-                    result.blue++;
-                } else {
-                    result.other++;
+            for (let high of [true, false]) {
+                for (let abilityCount of [2, 3]) {
+                    let r = this.toRect(this.positions[posName], pipGeo[`${abilityCount}x`]);
+                    if (high) { r.y -= 17; }
+                    this.appendPixels(id, r, pixels);
                 }
             }
         }
 
-        const count = r.w * r.h;
-        result.black /= count;
-        result.blue /= count;
-        result.silver /= count;
-        result.other /= count;
+        const inTensor = this.tf.tensor4d(pixels.array, [4 * positionCount, pipGeo.w, pipGeo.h, 3]);
+        const outTensor = this.pipModel.predict(inTensor);
+        const firstCircle = this.firstCircle(outTensor);
 
-        if (result.black > 0.75) {
-            result.primary = "#000";
-        } else if (result.blue > 0.75) {
-            result.primary = "#0ff";
-        } else if (result.silver > 0.75) {
-            result.primary = "#ccc";
-        } else {
-            result.primary = "#953";
-        }
+        inTensor.dispose();
+        outTensor.dispose();
 
-        return result;
+        return this.upgradeLevels(id, firstCircle);
     }
 
-    color(i8, i) {
-        const r = i8[i];
-        const g = i8[i + 1];
-        const b = i8[i + 2];
+    firstCircle(outTensor) {
+        const array = outTensor.dataSync();
 
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const delta = max - min;
+        let i = 0;
+        for (let posName in this.positions) {
+            for (let high of [true, false]) {
+                for (let abilityCount of [2, 3]) {
+                    if (array[3 * i + 2] < 0.1) {
+                        return { posName: posName, high: high, abilityCount: abilityCount };
+                    }
 
-        const val = max;
-        const sat = (max === 0 ? 0 : delta / max);
-        let hue = 0;
-        if (max === r) {
-            hue = (g - b) / delta;
-        } else if (max === g) {
-            hue = 2 + (b - r) / delta;
-        } else {
-            hue = 4 + (r - g) / delta;
+                    i++;
+                }
+            }
         }
-        hue = (60 * hue) % 360;
 
-        return { r: r, g: g, b: b, h: hue, s: sat, v: val };
+        return null;
+    }
+
+    upgradeLevels(id, firstCircle) {
+        if (firstCircle === null) { return null; }
+        let result = { posName: firstCircle.posName };
+
+        let rootR = this.positions[firstCircle.posName];
+        if (firstCircle.high) { rootR.y -= 17; }
+
+        const pixels = { array: new Float32Array(3 * firstCircle.abilityCount * pipGeo.w * pipGeo.h * 3), out: 0 };
+
+        // Look for ability circles for L1, L2, L3 for each ability present
+        for (let ability of (firstCircle.abilityCount === 3 ? ["3x", "3y", "3z"] : ["2x", "2y"])) {
+            for (let level of [1, 2, 3]) {
+                let r = { ...this.toRect(rootR, pipGeo[ability]), w: pipGeo.w, h: pipGeo.h };
+                if (level !== 1) {
+                    r = this.toRect(r, pipGeo[`l${level}`]);
+                }
+
+                this.appendPixels(id, r, pixels)
+            }
+        }
+
+        const inTensor = this.tf.tensor4d(pixels.array, [3 * firstCircle.abilityCount, pipGeo.w, pipGeo.h, 3]);
+        const outTensor = this.pipModel.predict(inTensor);
+        const array = outTensor.dataSync();
+
+        inTensor.dispose();
+        outTensor.dispose();
+
+        let i = 0;
+        for (let ability of (firstCircle.abilityCount === 3 ? ["3x", "3y", "3z"] : ["2x", "2y"])) {
+            let pips = [];
+
+            for (let level of [1, 2, 3]) {
+                const black = array[3 * i + 0];
+                const blue = array[3 * i + 1];
+                const other = array[3 * i + 2];
+                const color = (black > 0.9 ? "black" : (blue > 0.9 ? "blue" : "other"));
+                pips[level] = color;
+                i++;
+            }
+
+            let letter = ability[1];
+            result[letter] = null;
+
+            if (pips[3] === "blue") {
+                if (pips[2] === "blue" && pips[1] === "blue") {
+                    result[letter] = 3;
+                }
+            } else if (pips[2] === "blue") {
+                if (pips[1] === "blue") {
+                    result[letter] = 2;
+                }
+            } else if (pips[1] === "blue") {
+                result[letter] = 1;
+            } else if (pips[1] === "blacK") {
+                result[letter] = 0;
+            }
+        }
+
+        if (result?.x === null || result?.y === null || result?.z === null) { result = null; }
+        return result;
     }
 
     toRect(position, geo) {
         return {
             x: position.x + (geo.relX ?? 0),
             y: position.y + (geo.relY ?? 0),
-            w: geo.w,
-            h: geo.h
+            w: position.w ?? geo.w,
+            h: position.h ?? geo.h
         };
     }
 
-    imageDataToTensor(id) {
-        // Convert ImageData to Tensor format (R, G, B channels as float)
+    appendPixels(id, r, result) {
         const a8 = id.data;
-        const input = new Float32Array(IMAGE_SIZE);
+        const array = result.array;
+        let out = result.out ?? 0;
 
-        let out = 0;
-        for (let y = 0; y < id.height; ++y) {
-            for (let x = 0; x < id.width; ++x) {
-                let j = 4 * (y * id.width + x);
-                input[out++] = a8[j] / 255;
-                input[out++] = a8[j + 1] / 255;
-                input[out++] = a8[j + 2] / 255;
+        let bottom = r.y + r.h;
+        let right = r.x + r.w;
+        let width = id.width;
+        for (let y = r.y; y < bottom; ++y) {
+            for (let x = r.x; x < right; ++x) {
+                let j = 4 * (y * width + x);
+                array[out++] = a8[j] / 255;
+                array[out++] = a8[j + 1] / 255;
+                array[out++] = a8[j + 2] / 255;
             }
         }
 
-        return this.tf.tensor4d(input, [1, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS]);
+        result.out = out;
     }
 
-    topPredictions(outTensor) {
-        // Identify the two highest confidence predictions reported in the neural network output tensor
+    scanImage(ctx, positions, skipDiagnostics) {
+        positions ??= this.positions;
+        const positionCount = Object.keys(positions).length;
+
+        // Get the profile rectangle pixels for each tower position on the map
+        const id = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        const pixels = { array: new Float32Array(positionCount * settings.geo.profile.w * settings.geo.profile.h * 3), out: 0 };
+
+        for (let posName in positions) {
+            let r = this.toRect(positions[posName], settings.geo.profile);
+            this.appendPixels(id, r, pixels);
+        }
+
+        // Classify the tower at every position
+        const inTensor = this.tf.tensor4d(pixels.array, [positionCount, settings.geo.profile.w, settings.geo.profile.h, 3]);
+        const outTensor = this.towerModel.predict(inTensor);
         const array = outTensor.dataSync();
-        var matches = { best: null, prev: null };
-
-        for (let i = 0; i < array.length; ++i) {
-            var v = array[i];
-
-            if (matches.best === null || matches.best.confidence < v) {
-                matches.prev = matches.best;
-                matches.best = { name: classNames[i], confidence: v };
-            } else if (matches.prev === null || matches.prev.confidence < v) {
-                matches.prev = { name: classNames[i], confidence: v };
-            }
-        }
-
-        return matches;
-    }
-
-    scanPosition(ctx, pos) {
-        // Return the top tower predictions at the given tower position in the provided image
-        var r = this.toRect(pos, settings.geo.profile);
-        const id = ctx.getImageData(r.x, r.y, r.w, r.h);
-
-        const inTensor = this.imageDataToTensor(id);
-        const outTensor = this.model.predict(inTensor);
-        const predictions = this.topPredictions(outTensor);
 
         inTensor.dispose();
         outTensor.dispose();
 
-        return predictions;
-    }
+        // Return the top predictions at each
+        let state = {};
 
-    scanImage(ctx) {
-        // Return the top tower predictions at all tower positions in the provided image
-        this.state = {};
+        const classCount = towerNames.length;
+        let i = 0;
+        for (let posName in positions) {
+            let matches = { best: null, prev: null };
 
-        for (let posName in this.positions) {
-            this.state[posName] = this.scanPosition(ctx, this.positions[posName]);
+            for (let j = 0; j < classCount; ++j) {
+                let v = array[j + classCount * i];
+
+                if (matches.best === null || matches.best.confidence < v) {
+                    matches.prev = matches.best;
+                    matches.best = { name: towerNames[j], confidence: v };
+                } else if (matches.prev === null || matches.prev.confidence < v) {
+                    matches.prev = { name: towerNames[j], confidence: v };
+                }
+            }
+
+            state[posName] = matches;
+            i++;
         }
 
-        this.drawDiagnostics();
-        return this.state;
+        if (!skipDiagnostics) {
+            this.drawDiagnostics(positions, state);
+        }
+
+        return state;
     }
 
-    drawDiagnostics() {
+    drawDiagnostics(positions, state) {
         if (!this.diagnosticDrawing) { return; }
 
-        for (let posName in this.positions) {
-            const prediction = this?.state?.[posName]?.best;
+        for (let posName in positions) {
+            const prediction = state?.[posName]?.best;
 
             if (!prediction) { continue; }
             if (prediction.confidence >= 0.95 && (prediction.name === "None" || prediction.name === "Map")) { continue; }
 
             const color = (prediction.confidence >= 0.95 ? "#0f0" : (prediction.confidence >= 0.85 ? "#f92" : "#f00"));
             const options = { left: true, fontSizePx: 18, textColor: color, backColor: '#222', borderColor: color };
-            const r = this.toRect(this.positions[posName], settings.geo.towerDiagnostics);
+            const r = this.toRect(positions[posName], settings.geo.towerDiagnostics);
 
             this.diagnosticDrawing.drawBox(r, { borderColor: color });
             this.diagnosticDrawing.drawText({ x: r.x, y: r.y + 17 }, prediction.name, options);
@@ -283,22 +244,26 @@ export default class Scanner {
 
     identifyMap(ctx) {
         let best = null;
-        let scans = 0;
 
-        // Try to identify by first position only
+        // Scan one position at a time per map from every map
         for (let posIndex = 0; posIndex < 20; ++posIndex) {
+            let positions = {};
+
             for (let mapName in allPositions) {
                 const pos = Object.values(allPositions[mapName])[posIndex];
                 if (!pos) { break; }
+                positions[mapName] = { ...pos, name: mapName };
+            }
 
-                const matches = this.scanPosition(ctx, pos);
-                scans++;
-
+            const state = this.scanImage(ctx, positions, true);
+            for (let mapName in state) {
+                const matches = state[mapName];
                 if (matches.best.name !== 'Map') {
                     if (best === null || matches.best.confidence > best.confidence) {
                         best = { name: mapName, confidence: matches.best.confidence };
                     }
 
+                    // Return on the first high confidence position found
                     if (best.confidence >= ConfidenceThreshold) { break; }
                 }
             }
@@ -306,7 +271,6 @@ export default class Scanner {
             if (best?.confidence >= ConfidenceThreshold) { break; }
         }
 
-        //this.log(`Detected Map: ${(best.confidence * 100).toFixed(0)}% ${best.name} after ${scans}`);
         if (best?.confidence >= ConfidenceThreshold) {
             return best.name;
         } else {
@@ -390,6 +354,7 @@ export default class Scanner {
         }
 
         let state = this.scanImage(ctx);
+        this.state = state;
         let loggedThisFrame = false;
 
         for (let posName in state) {
