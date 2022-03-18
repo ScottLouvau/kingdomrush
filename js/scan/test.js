@@ -16,6 +16,7 @@ let video = null;
 let duration = null;
 let start = null;
 
+let callback = null;
 let nextTowerScan = null;
 let nextAbilityScan = null;
 
@@ -36,19 +37,20 @@ async function onLoaded() {
     duration = video.duration;
     start = performance.now();
 
-    nextTowerScan = 0;
-    nextAbilityScan = 0;
+    nextTowerScan = 0.5;
+    nextAbilityScan = 0.5;
 
-    // Play at 16x speed
+    // Play at faster speed
     video.playbackRate = playbackRate;
     video.play();
 
-    setTimeout(onFrame, 50);
+    callback = setTimeout(onFrame, 50);
 }
 
 async function onFrame(e) {
     const elapsed = video.currentTime;
     let next = Math.min(nextTowerScan, nextAbilityScan);
+    let log = `@${elapsed.toFixed(2)}`;
 
     if (elapsed >= next) {
         // Grab a frame
@@ -59,7 +61,7 @@ async function onFrame(e) {
 
     let circle = null;
     if (elapsed >= nextAbilityScan) {
-        //console.log(`Ability @${elapsed.toFixed(2)}, wanted @${nextAbilityScan.toFixed(2)}`);
+        const thisAbilityScan = nextAbilityScan;
         nextAbilityScan = elapsed + circleIntervalSec;
 
         const start = performance.now();
@@ -68,11 +70,11 @@ async function onFrame(e) {
             circle = scanner.circleAtPosition(ctx);
         }
         const end = performance.now();
-        //console.log(`${circleIterations}x Circle in ${(end - start).toFixed(0)}ms`);
+        log += `\n Ability in ${(end - start).toFixed(0)}ms, wanted @${thisAbilityScan.toFixed(2)}, lag ${((elapsed - thisAbilityScan) * 1000).toFixed(0)}ms`;
     }
 
     if (elapsed >= nextTowerScan) {
-        //console.log(`Tower @${elapsed.toFixed(2)}, wanted @${nextTowerScan.toFixed(2)}`);
+        const thisTowerScan = nextTowerScan;
         nextTowerScan = elapsed + scanIntervalSec;
 
         const start = performance.now();
@@ -81,11 +83,12 @@ async function onFrame(e) {
             state = scanner.nextFrame(ctx);
         }
         const end = performance.now();
-        console.log(`${towerIterations}x Tower in ${(end - start).toFixed(0)}ms`);
 
         if (!circles.map && scanner.mapName) {
             circles.map = scanner.mapName;
         }
+
+        log += `\n Towers in ${(end - start).toFixed(0)}ms, wanted @${thisTowerScan.toFixed(2)}, lag ${((elapsed - thisTowerScan) * 1000).toFixed(0)}ms`;
     }
 
     if (circle !== null) {
@@ -122,10 +125,12 @@ async function onFrame(e) {
 
     next = Math.min(nextTowerScan, nextAbilityScan);
     if (next < duration) {
-        const waitMs = Math.max(10, 1000 * (next - 0.05 - video.currentTime) / playbackRate);
-        setTimeout(onFrame, waitMs);
-        //console.log(`Waiting ${waitMs.toFixed(0)} ms`);
+        const waitMs = Math.floor(Math.max(10, 1000 * (next - 0.05 - video.currentTime) / playbackRate));
+        callback = setTimeout(onFrame, waitMs);
+        log += `\n Sleep ${waitMs}ms`;
     }
+
+    console.log(log);
 }
 
 function scanImage() {
@@ -159,7 +164,8 @@ async function onEnded(e) {
     const timeSeconds = (end - start) / 1000;
     console.log(`Video Played through in: ${timeSeconds.toFixed(1)}s (${(video.duration / timeSeconds).toFixed(1)}x)`);
 
-    downloadData();
+    // Disabling while testing
+    //downloadData();
     nextVideo();
 }
 
@@ -229,20 +235,24 @@ function download(text, type, fileName) {
 function keyDown(e) {
     if (e.keyCode === 32) {
         e.preventDefault();
-        video.play();
-        onFrame();
+
+        if (video.paused) {
+            video.play();
+            onFrame();
+        } else {
+            video.pause();
+            clearTimeout(callback);
+            callback = null;
+        }
     }
 }
 
 async function run() {
-    const model = await tf.loadGraphModel('../data/models/v2-u8-graph/model.json');
-    const pipModel = await tf.loadLayersModel('../data/models/pips-tiny/pips.json');
-    scanner = new Scanner(tf, model, null, pipModel);
-
+    // Create an image element to get dropped images
     image = document.createElement('img');
     image.addEventListener('load', scanImage);
 
-    // Create video element to play video and get frames
+    // Create a video element to get dropped videos to extract frames from
     video = document.getElementById('video');
     video.width = 1920;
     video.height = 1080;
@@ -257,11 +267,18 @@ async function run() {
     ctx = can.getContext('2d');
 
     planOut = document.getElementById('planOut');
+
+    // Get canvas diagnostics are drawn to
     diagnostic = document.getElementById("diagnostic");
     drawing = new Drawing(diagnostic);
 
-    // Hack to punch through diagnostics
-    scanner.diagnosticDrawing = drawing;
+    // Initialize AI scanner
+    const model = await tf.loadGraphModel('../data/models/v2-u8-graph/model.json');
+    const pipModel = await tf.loadLayersModel('../data/models/pips-tiny/pips.json');
+    scanner = new Scanner(tf, model, pipModel, drawing);//, console.log);
+
+    // Precompile AI models for faster first frame handling
+    scanner.prewarm();
 
     // Accept drag-and-drop video anywhere
     document.body.addEventListener('dragover', (e) => { e.preventDefault(); });

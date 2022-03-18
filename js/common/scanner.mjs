@@ -6,7 +6,6 @@ const towerNames = ['Arca', 'Arch', 'Arch2', 'Arch3', 'Arti', 'Arti2', 'Arti3', 
 const IMAGE_WIDTH = 80;
 const IMAGE_HEIGHT = 80;
 const IMAGE_CHANNELS = 3;
-const IMAGE_SIZE = IMAGE_WIDTH * IMAGE_HEIGHT * IMAGE_CHANNELS;
 
 const ConfidenceThreshold = 0.95;
 const SecondsPerFrame = 5;
@@ -26,12 +25,62 @@ const pipGeo = {
 };
 
 export default class Scanner {
-    constructor(tf, towerModel, logger, pipModel) {
+    constructor(tf, towerModel, pipModel, diagnosticDrawing, logger) {
         this.tf = tf;
         this.towerModel = towerModel;
         this.pipModel = pipModel;
-        this.logger = logger;
-        this.diagnosticDrawing = null;
+        this.diagnosticDrawing = diagnosticDrawing ?? null;
+        this.logger = logger ?? null;
+    }
+
+    prewarm() {
+        this.tf.tidy(() => {
+            let shape = [ ...this.towerModel.inputs[0].shape ];
+            shape[0] = 1;
+            this.towerModel.predict(this.tf.zeros(shape));
+
+            shape = [ ...this.pipModel.inputs[0].shape ];
+            shape[0] = 1
+            this.pipModel.predict(this.tf.zeros(shape));
+        });
+
+        this.log("Warmed up models.");
+    }
+
+    reset() {
+        this.mapName = null;
+    }
+
+    init(ctx, mapName) {
+        if (!mapName) {
+            mapName = this.identifyMap(ctx);
+            if (mapName === null) { return; }
+        }
+
+        this.log(mapName);
+        this.mapName = mapName;
+        this.positions = allPositions[mapName];
+        this.plan = [mapName, ''];
+
+        this.world = {};
+        for (let posName in this.positions) {
+            this.world[posName] = { base: { ln: 'None' } };
+        }
+
+        this.i = 0;
+    }
+
+    
+    // Scan a series of PNG frames over time; write the build plan to console and output file
+    async scanFrames(nextImage) {
+        let ctx = await nextImage();
+        this.init(ctx);
+
+        for (; ctx !== null; ctx = await nextImage()) {
+            this.nextFrame(ctx);
+        }
+
+        return this.plan.join('\r\n');
     }
 
     circleAtPosition(ctx) {
@@ -162,6 +211,7 @@ export default class Scanner {
     }
 
     identifyMap(ctx) {
+        this.log("Identifying map...");
         let best = null;
 
         // Scan one position at a time per map from every map
@@ -191,79 +241,12 @@ export default class Scanner {
         }
 
         if (best?.confidence >= ConfidenceThreshold) {
+            this.log(`Map: ${best.name}`);
             return best.name;
         } else {
+            this.log(`Map could not be identified. Will retry.`);
             return null;
         }
-    }
-
-    evaluateStep(posName, matches, previous) {
-        if (matches?.best?.name === null) {
-            return { issue: `ERROR ${posName}: returned no detections.` };
-        } else if (matches.best.confidence < ConfidenceThreshold) {
-            return { issue: `WARN ${posName}: ignored low confidence ${matches.best.name} (${(matches.best.confidence * 100).toFixed(0)}%)` };
-        } else if (matches.best.name === "Map") {
-            return { issue: `WARN ${posName}: detection said non-position map space.` };
-        } else if (matches.best.name === "None") {
-            if (previous !== "None") {
-                return { issue: `WARN ${posName}: ignored None where previously ${previous}.` };
-            }
-        } else if (matches.best.name !== previous) {
-            const prevTower = towers.base[previous];
-            const currTower = towers.base[matches.best.name];
-
-            if (prevTower) {
-                if (currTower.shortName[0] !== prevTower.shortName[0]) {
-                    return { issue: `ERROR ${posName}: Can't build ${matches.best.name} on ${previous}.` };
-                } else if (currTower.shortName[1] < prevTower.shortName[1]) {
-                    return { issue: `ERROR: ${posName}: Tower downgrade to ${matches.best.name} from ${previous}.` };
-                }
-            }
-
-            return { issue: null, isChange: true };
-        }
-
-        return { issue: null, isChange: false };
-    }
-
-    logPositionState(posName, matches, previously) {
-        let message = `  ${posName}: `;
-
-        if (previously) {
-            message += `${previously} => `;
-        }
-
-        message += matches.best.name;
-
-        if (matches.best.confidence < 0.98) {
-            message += `     [${(matches?.best?.confidence * 100).toFixed(0)}%]`;
-        }
-
-        this.log(message);
-    }
-
-    reset() {
-        this.mapName = null;
-    }
-
-    init(ctx, mapName) {
-        if (!mapName) {
-            this.log("Identifying map...");
-            mapName = this.identifyMap(ctx);
-            if (mapName === null) { return; }
-        }
-
-        this.log(mapName);
-        this.mapName = mapName;
-        this.positions = allPositions[mapName];
-        this.plan = [mapName, ''];
-
-        this.world = {};
-        for (let posName in this.positions) {
-            this.world[posName] = { base: 'None' };
-        }
-
-        this.i = 0;
     }
 
     nextFrame(ctx) {
@@ -323,19 +306,6 @@ export default class Scanner {
         this.i++;
         return state;
     }
-
-    // Scan a series of PNG frames over time; write the build plan to console and output file
-    async scanFrames(nextImage) {
-        let ctx = await nextImage();
-        this.init(ctx);
-
-        for (; ctx !== null; ctx = await nextImage()) {
-            this.nextFrame(ctx);
-        }
-
-        return this.plan.join('\r\n');
-    }
-
 
     classify(id, rects, model, labels, skipDiagnostics) {
         if (!rects.length) { return []; }
@@ -425,12 +395,56 @@ export default class Scanner {
             return "#0f0";
         }
     }
+    
+    evaluateStep(posName, matches, previous) {
+        if (matches?.best?.name === null) {
+            return { issue: `ERROR ${posName}: returned no detections.` };
+        } else if (matches.best.confidence < ConfidenceThreshold) {
+            return { issue: `WARN ${posName}: ignored low confidence ${matches.best.name} (${(matches.best.confidence * 100).toFixed(0)}%)` };
+        } else if (matches.best.name === "Map") {
+            return { issue: `WARN ${posName}: detection said non-position map space.` };
+        } else if (matches.best.name === "None") {
+            if (previous !== "None") {
+                return { issue: `WARN ${posName}: ignored None where previously ${previous}.` };
+            }
+        } else if (matches.best.name !== previous) {
+            const prevTower = towers.base[previous];
+            const currTower = towers.base[matches.best.name];
+
+            if (prevTower) {
+                if (currTower.shortName[0] !== prevTower.shortName[0]) {
+                    return { issue: `ERROR ${posName}: Can't build ${matches.best.name} on ${previous}.` };
+                } else if (currTower.shortName[1] < prevTower.shortName[1]) {
+                    return { issue: `ERROR: ${posName}: Tower downgrade to ${matches.best.name} from ${previous}.` };
+                }
+            }
+
+            return { issue: null, isChange: true };
+        }
+
+        return { issue: null, isChange: false };
+    }
+
+    logPositionState(posName, matches, previously) {
+        let message = `  ${posName}: `;
+
+        if (previously) {
+            message += `${previously} => `;
+        }
+
+        message += matches.best.name;
+
+        if (matches.best.confidence < 0.98) {
+            message += `     [${(matches?.best?.confidence * 100).toFixed(0)}%]`;
+        }
+
+        this.log(message);
+    }
 
     log(message) {
         if (!message) { message = ""; }
 
         if (this.logger) {
-            console.log(message);
             this.logger(message);
         }
     }
