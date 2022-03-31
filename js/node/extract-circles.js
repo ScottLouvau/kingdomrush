@@ -1,7 +1,7 @@
 import fs from 'fs';
 import canvas from 'canvas';
 
-import { loadJson, saveAsPng, createCanvas } from './nodeBindings.mjs';
+import { loadJson, loadToContext, saveAsPng, createCanvas } from './nodeBindings.mjs';
 import SpriteWriter from '../common/spriteWriter.mjs';
 
 const ffmpeg = "\\Users\\slouv\\OneDrive\\Tools\\bin\\ffmpeg\\ffmpeg.exe";
@@ -54,16 +54,19 @@ async function extract(outBasePath) {
     const can = createCanvas(pipGeo.w, pipGeo.h);
     const ctx = can.getContext('2d');
 
+    const canSource = createCanvas(1920, 1080);
+    const ctxSource = canSource.getContext('2d');
+
     for (let i = 0; i < tests.length; ++i) {
         const test = tests[i];
-        const img = await canvas.loadImage(`test/img/png/abilityCircle/${test.file}.png`);
+        await loadToContext(`test/img/WebP/abilityCircle/${test.file}.webp`, ctxSource);
         const positions = allPositions[test.map];
 
         const set = expandToAll(test, positions);
 
         for (let j = 0; j < set.length; ++j) {
             const item = set[j];
-            ctx.drawImage(img, item.x, item.y, pipGeo.w, pipGeo.h, 0, 0, pipGeo.w, pipGeo.h);
+            ctx.drawImage(canSource, item.x, item.y, pipGeo.w, pipGeo.h, 0, 0, pipGeo.w, pipGeo.h);
             await saveAsPng(`${outBasePath}/${item.color}/${test.file}_${j}.png`, can);
         }
 
@@ -208,8 +211,8 @@ async function toSingleSprite(collectionFolderPath, outPath) {
 async function main() {
     const start = performance.now();
 
-    const outBasePath = `/Working/KR-Circle-Tensor`;
-    const spritePath = `/Working/KR-Circle-Sprites`;
+    const outBasePath = `../../working/KR-Circle-Tensor`;
+    const spritePath = `../../working/KR-Circle-Sprites`;
 
     await extract(outBasePath);
     await toSingleSprite(outBasePath, spritePath);

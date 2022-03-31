@@ -2,7 +2,12 @@
 package-lock.json
 node_modules/
 
+# OS Cached Stuff
+.DS_Store
+Thumbs.db
+
 # Generated outputs
+working/
 deploy/
 js/node/playthrough/
 js/data/train-sprites/
