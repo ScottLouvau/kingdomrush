@@ -100,16 +100,16 @@ export default class Scanner {
         }
 
         const results = this.classify(id, allPositionL1s, this.pipModel, pipNames);//, true);
-        let firstCircle = null;
+        let bestCircle = null;
         for (let circle of results) {
-            if (circle.label !== "other" && circle.confidence >= 0.9) {
-                firstCircle = { posName: circle.posName, ...this.positions[circle.posName], abilityCount: circle.abilityCount };
-                if (circle.high) firstCircle.y -= 17;
+            if (circle.label !== "other" && circle.confidence >= 0.9 && circle.confidence > (bestCircle?.confidence ?? 0)) {
+                bestCircle = {  ...circle, ...this.positions[circle.posName] };
+                if (circle.high) bestCircle.y -= 17;
                 break;
             }
         }
 
-        return this.upgradeLevels(id, firstCircle);
+        return this.upgradeLevels(id, bestCircle);
     }
 
     upgradeLevels(id, firstCircle) {
