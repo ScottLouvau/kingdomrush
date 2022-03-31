@@ -138,6 +138,8 @@ function scanImage() {
     drawing.drawImage(can);
     state = scanner.nextFrame(ctx);
     let circle = scanner.circleAtPosition(ctx);
+    console.log(`Detected Map ${scanner.mapName}; circle:`);
+    console.log(circle);
 }
 
 function checkForNewUpgrade(last, circle, letter) {

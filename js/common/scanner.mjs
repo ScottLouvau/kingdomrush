@@ -35,11 +35,11 @@ export default class Scanner {
 
     prewarm() {
         this.tf.tidy(() => {
-            let shape = [ ...this.towerModel.inputs[0].shape ];
+            let shape = [...this.towerModel.inputs[0].shape];
             shape[0] = 1;
             this.towerModel.predict(this.tf.zeros(shape));
 
-            shape = [ ...this.pipModel.inputs[0].shape ];
+            shape = [...this.pipModel.inputs[0].shape];
             shape[0] = 1
             this.pipModel.predict(this.tf.zeros(shape));
         });
@@ -70,7 +70,7 @@ export default class Scanner {
         this.i = 0;
     }
 
-    
+
     // Scan a series of PNG frames over time; write the build plan to console and output file
     async scanFrames(nextImage) {
         let ctx = await nextImage();
@@ -150,7 +150,7 @@ export default class Scanner {
                 }
             } else if (pips[1] === "blue") {
                 result[letter] = 1;
-            } else if (pips[1] === "blacK") {
+            } else if (pips[1] === "black") {
                 result[letter] = 0;
             }
         }
@@ -202,49 +202,50 @@ export default class Scanner {
 
         // Return the top predictions at each
         let state = {};
-
         for (let result of towerResults) {
-            state[result.posName] = { best: { name: result.label, confidence: result.confidence } };
+            state[result.posName] = { best: { name: result.label, confidence: result.confidence }, ...positions[result.posName] };
         }
 
         return state;
     }
 
     identifyMap(ctx) {
+        const start = performance.now();
         this.log("Identifying map...");
-        let best = null;
 
-        // Scan one position at a time per map from every map
-        for (let posIndex = 0; posIndex < 20; ++posIndex) {
-            let positions = {};
+        let confidencePerMap = {};
+        let positions = {};
 
-            for (let mapName in allPositions) {
-                const pos = Object.values(allPositions[mapName])[posIndex];
+        for (let mapName in allPositions) {
+            const mapPositions = Object.values(allPositions[mapName]);
+            for (let posIndex = 0; posIndex < 5; ++posIndex) {
+                const pos = mapPositions[posIndex];
                 if (!pos) { break; }
-                positions[mapName] = { ...pos, name: mapName };
+                positions[`${mapName}.${posIndex}`] = { ...pos, map: mapName };
             }
-
-            const state = this.scanImage(ctx, positions, true);
-            for (let mapName in state) {
-                const matches = state[mapName];
-                if (matches.best.name !== 'Map') {
-                    if (best === null || matches.best.confidence > best.confidence) {
-                        best = { name: mapName, confidence: matches.best.confidence };
-                    }
-
-                    // Return on the first high confidence position found
-                    if (best.confidence >= ConfidenceThreshold) { break; }
-                }
-            }
-
-            if (best?.confidence >= ConfidenceThreshold) { break; }
         }
 
-        if (best?.confidence >= ConfidenceThreshold) {
-            this.log(`Map: ${best.name}`);
-            return best.name;
+        const state = this.scanImage(ctx, positions, true);
+        for (let pName in state) {
+            const match = state[pName];
+            if (match.best.name !== 'Map') {
+                confidencePerMap[match.map] = match.best.confidence + (confidencePerMap[match.map] ?? 0);                    
+            }
+        }
+
+        let bestMap = null;
+        for (let mapName in confidencePerMap) {
+            if(bestMap === null || confidencePerMap[mapName] > confidencePerMap[bestMap]) {
+                bestMap = mapName;
+            }
+        }
+
+        const timeMs = performance.now() - start;
+        if (bestMap && confidencePerMap[bestMap] >= ConfidenceThreshold) {
+            this.log(`Map: ${bestMap} (${(confidencePerMap[bestMap] * 100 / 5).toFixed(0)}%) in ${timeMs.toFixed(0)}ms`);
+            return bestMap;
         } else {
-            this.log(`Map could not be identified. Will retry.`);
+            this.log(`Map could not be identified after ${timeMs.toFixed(0)}ms. Will retry.`);
             return null;
         }
     }
@@ -395,7 +396,7 @@ export default class Scanner {
             return "#0f0";
         }
     }
-    
+
     evaluateStep(posName, matches, previous) {
         if (matches?.best?.name === null) {
             return { issue: `ERROR ${posName}: returned no detections.` };
