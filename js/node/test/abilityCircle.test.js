@@ -1,9 +1,12 @@
 import fs from 'fs';
+import tf from '@tensorflow/tfjs-node';
 import { jest } from '@jest/globals';
 import { createCanvas, loadToContext } from '../nodeBindings.mjs';
 import Scanner from "../../common/scanner.mjs";
 
-const scanner = new Scanner(null, null, null);
+const model = await tf.loadGraphModel('file://../data/models/v2-u8-graph/model.json');
+const pipModel = await tf.loadLayersModel('file://../data/models/pips-tiny/pips.json');
+const scanner = new Scanner(tf, model, pipModel);
 const cases = JSON.parse(await fs.promises.readFile('test/abilityCircle.cases.json', 'utf8'));
 
 
